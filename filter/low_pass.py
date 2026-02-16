@@ -156,6 +156,6 @@ if __name__ == '__main__':
 
     low_pass.weight = 20.0
 
-    low_pass.traceset_path = "D:\\traceset\\milenage.trs"
+    low_pass.traceset_path = "D:\\traceset\\c51_aes128\\aes128_de.trs"
 
     low_pass.low_pass()

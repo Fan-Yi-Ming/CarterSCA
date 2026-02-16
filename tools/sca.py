@@ -36,6 +36,89 @@ def hw(byte):
     return weight
 
 
+def analyze_process_cpa_cpu(data_arr_2d, sample_arr_2d):
+    epsilon = 1e-10
+
+    data_mean = np.mean(data_arr_2d, axis=0, keepdims=True)
+    data_std = np.std(data_arr_2d, axis=0, keepdims=True)
+    data_std = np.maximum(data_std, epsilon)
+    data_norm = (data_arr_2d - data_mean) / data_std
+
+    sample_mean = np.mean(sample_arr_2d, axis=0, keepdims=True)
+    sample_std = np.std(sample_arr_2d, axis=0, keepdims=True)
+    sample_std = np.maximum(sample_std, epsilon)
+    sample_norm = (sample_arr_2d - sample_mean) / sample_std
+
+    trace_number = data_arr_2d.shape[0]
+    correlation_arr_2d = np.dot(data_norm.T, sample_norm) / (trace_number - 1)
+    correlation_arr_2d = np.clip(correlation_arr_2d, -1.0, 1.0)
+
+    return correlation_arr_2d.astype(np.float32)
+
+
+def analyze_process_cpa_gpu(data_arr_2d, sample_arr_2d, batch_size=10000):
+    epsilon = 1e-10
+
+    data_arr_2d_gpu = cp.ascontiguousarray(cp.asarray(data_arr_2d))
+    sample_arr_2d_gpu = cp.ascontiguousarray(cp.asarray(sample_arr_2d))
+
+    trace_number, sbox_size = data_arr_2d_gpu.shape
+    sample_number = sample_arr_2d_gpu.shape[1]
+
+    data_mean = cp.mean(data_arr_2d_gpu, axis=0, keepdims=True)
+    data_std = cp.std(data_arr_2d_gpu, axis=0, keepdims=True)
+    data_std = cp.maximum(data_std, epsilon)
+
+    sample_mean = cp.mean(sample_arr_2d_gpu, axis=0, keepdims=True)
+    sample_std = cp.std(sample_arr_2d_gpu, axis=0, keepdims=True)
+    sample_std = cp.maximum(sample_std, epsilon)
+
+    data_arr_2d_gpu -= data_mean
+    data_arr_2d_gpu /= data_std
+
+    sample_arr_2d_gpu -= sample_mean
+    sample_arr_2d_gpu /= sample_std
+
+    correlation_arr_2d_gpu = cp.zeros((sbox_size, sample_number), dtype=data_arr_2d_gpu.dtype)
+
+    num_batches = (sample_number + batch_size - 1) // batch_size
+
+    for batch_idx in range(num_batches):
+        start = batch_idx * batch_size
+        end = min(start + batch_size, sample_number)
+
+        sample_batch_norm = sample_arr_2d_gpu[:, start:end]
+
+        batch_correlation = cp.dot(data_arr_2d_gpu.T, sample_batch_norm) / (trace_number - 1)
+        batch_correlation = cp.clip(batch_correlation, -1.0, 1.0)
+
+        correlation_arr_2d_gpu[:, start:end] = batch_correlation
+
+    result = correlation_arr_2d_gpu.get()
+    return result.astype(np.float32)
+
+
+def rank_sbox_key_guesses(correlation_arr_2d, candidates):
+    sbox_size = correlation_arr_2d.shape[0]
+
+    abs_corr = np.abs(correlation_arr_2d)
+    max_abs_val = np.max(abs_corr, axis=1)  # 每个密钥的最大|r|
+    max_abs_pos = np.argmax(abs_corr, axis=1)  # 最大|r|出现的位置
+
+    # 获取带符号的实际最大相关系数
+    actual_max_val = correlation_arr_2d[np.arange(sbox_size), max_abs_pos]
+
+    # 按|r|降序排序
+    sorted_indices = np.argsort(-max_abs_val)
+
+    # 返回前candidates个结果
+    sbox_key_arr = sorted_indices[:candidates].astype(np.uint8)
+    sbox_keycorr_arr = actual_max_val[sorted_indices[:candidates]]
+    sbox_keypos_arr = max_abs_pos[sorted_indices[:candidates]]
+
+    return sbox_key_arr, sbox_keycorr_arr, sbox_keypos_arr
+
+
 def analyze_process_cpa_cp(sbox_index, data_arr_2d, sample_arr_2d,
                            sbox_key_arr_2d, sbox_keycorr_arr_2d, sbox_keypos_arr_2d,
                            candidates, batch_size=10000):
