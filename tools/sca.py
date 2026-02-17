@@ -119,6 +119,22 @@ def rank_sbox_key_guesses(correlation_arr_2d, candidates):
     return sbox_key_arr, sbox_keycorr_arr, sbox_keypos_arr
 
 
+def report_sbox_key_guesses(sbox_index, sbox_key_arr, sbox_keycorr_arr, sbox_keypos_arr, sample_first_pos):
+    best_key = sbox_key_arr[0]
+    print(f"The Sbox{sbox_index} best correlation Key byte {best_key:02X}:")
+
+    candidates = sbox_key_arr.shape[0]
+    for i in range(candidates):
+        key_candidate = sbox_key_arr[i]
+        correlation_value = sbox_keycorr_arr[i]
+        relative_pos = sbox_keypos_arr[i]
+        absolute_pos = sample_first_pos + relative_pos
+        print(f"Key byte candidate: {key_candidate:02X}, "
+              f"value: {correlation_value:.3f}, "
+              f"at relative position: {relative_pos}, "
+              f"absolute position: {absolute_pos}")
+
+
 def analyze_process_cpa_cp(sbox_index, data_arr_2d, sample_arr_2d,
                            sbox_key_arr_2d, sbox_keycorr_arr_2d, sbox_keypos_arr_2d,
                            candidates, batch_size=10000):

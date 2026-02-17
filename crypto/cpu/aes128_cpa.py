@@ -8,7 +8,9 @@ from trsfile.parametermap import TraceParameterMap, TraceSetParameterMap, TraceP
 from typing import Tuple
 from multiprocessing import Pool, cpu_count
 from tools.aes import Aes, aes_inv_keyexpansion
-from tools.sca import hw, index_str_to_range, analyze_process_cpa_cpu, rank_sbox_key_guesses, analyze_process_cpa_gpu
+from tools.sca import (hw, index_str_to_range,
+                       rank_sbox_key_guesses, analyze_process_cpa_cpu,
+                       report_sbox_key_guesses)
 
 
 def process_single_trace(traceset_path, trace_index,
@@ -23,12 +25,9 @@ def process_single_trace(traceset_path, trace_index,
     data_arr_2d = np.zeros((sbox_num, sbox_size), dtype=np.float32)
 
     aes = Aes()
-
     input_arr = np.frombuffer(bytes(trace.parameters["INPUT"].value), dtype=np.uint8)[0:16]
-
     Nb = 4
     wi = np.zeros(Nb, dtype=np.uint32)
-
     if crypto_direction == 0:
         for i in range(sbox_size):
             aes.set_state(input_arr)
@@ -109,33 +108,6 @@ class Aes128CPA:
         self.data_arr_3d = np.zeros((self.sbox_num, self.trace_number, self.sbox_size), dtype=np.float32)
         self.sample_arr_2d = np.zeros((self.trace_number, self.sample_number), dtype=np.float32)
 
-    def analyze(self):
-        self.init_process()
-
-        self.load_samples_and_creat_intermediates()
-
-        print(f"开始分析Sbox")
-        start_time = datetime.now()
-        for sbox_idx, sbox_index in enumerate(index_str_to_range(self.sbox_index_str), 1):
-            correlation_arr_2d = analyze_process_cpa_gpu(self.data_arr_3d[sbox_index], self.sample_arr_2d)
-            self.sbox_key_arr_2d[sbox_index], self.sbox_keycorr_arr_2d[sbox_index], self.sbox_keypos_arr_2d[sbox_index] \
-                = rank_sbox_key_guesses(correlation_arr_2d, self.candidates)
-
-            if self.traceset2_switch:
-                for i in range(self.sbox_size):
-                    trace_parameter_map = TraceParameterMap()
-                    trace = Trace(
-                        sample_coding=SampleCoding.FLOAT,
-                        samples=correlation_arr_2d[i],
-                        parameters=trace_parameter_map,
-                        title=f"Sbox{sbox_index}-KeyGuess_0x{i:02X}")
-                    self.traceset2.append(trace)
-            print(f"Sbox{sbox_index} 分析完成")
-        total_time = (datetime.now() - start_time).total_seconds()
-        print(f"所有Sbox分析完成! 总耗时:{total_time:.3f}秒")
-
-        self.finish_process()
-
     def finish_process(self):
         self.report()
         self.recovery_key()
@@ -156,7 +128,7 @@ class Aes128CPA:
             print(f"自动调整样本点数量为: {self.sample_number}")
 
     def open_traceset2(self):
-        if self.traceset2_switch:
+        if self.traceset2_switch == True:
             traceset_parameter_map = TraceSetParameterMap()
 
             trace_parameter_definition_map = TraceParameterDefinitionMap()
@@ -174,13 +146,12 @@ class Aes128CPA:
             }
 
             base_name = os.path.splitext(os.path.basename(self.traceset_path))[0]
-            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            timestamp = datetime.now().strftime("%H%M%S")
             new_base_name = f"{base_name}+AES128CPA({timestamp})"
             traceset2_path = os.path.join(
                 os.path.dirname(self.traceset_path),
                 new_base_name + os.path.splitext(self.traceset_path)[1]
             )
-
             self.traceset2 = trsfile.trs_open(
                 path=traceset2_path,
                 mode='w',
@@ -195,9 +166,17 @@ class Aes128CPA:
             self.traceset.close()
 
     def close_traceset2(self):
-        if self.traceset2_switch:
+        if self.traceset2_switch == True:
             if self.traceset2:
                 self.traceset2.close()
+
+    def report(self):
+        for sbox_index in index_str_to_range(self.sbox_index_str):
+            report_sbox_key_guesses(sbox_index,
+                                    self.sbox_key_arr_2d[sbox_index],
+                                    self.sbox_keycorr_arr_2d[sbox_index],
+                                    self.sbox_keypos_arr_2d[sbox_index],
+                                    self.sample_first_pos)
 
     def load_samples_and_creat_intermediates(self):
         start_time = datetime.now()
@@ -206,14 +185,12 @@ class Aes128CPA:
         batch_size = 100
         batch_number = (self.trace_number + batch_size - 1) // batch_size
 
-        # 多进程并行加载迹线数据
+        # 多进程并行加载
         with Pool(processes=self.num_processes) as pool:
             for batch_idx in range(batch_number):
-                # 计算当前批次处理的迹线范围
                 start_idx = batch_idx * batch_size
                 end_idx = min((batch_idx + 1) * batch_size, self.trace_number)
                 current_batch_size = end_idx - start_idx
-
                 print(f"批{batch_idx + 1}/{batch_number} ({current_batch_size}条)")
 
                 # 准备任务参数
@@ -233,78 +210,75 @@ class Aes128CPA:
         total_time = (datetime.now() - start_time).total_seconds()
         print(f"加载完成 用时:{total_time:.3f}秒")
 
-    def report(self):
-        """
-        生成并打印攻击结果报告
+    def analyze(self):
+        self.init_process()
 
-        显示每个S盒的最佳密钥候选及其相关系数和位置信息
-        """
-        # 遍历指定的S盒索引
+        self.load_samples_and_creat_intermediates()
 
-        for i in index_str_to_range(self.sbox_index_str):
-            # 获取当前S盒的最佳密钥字节
-            best_key = self.sbox_key_arr_2d[i][0]
-            print(f"The Sbox{i} best correlation Key byte {best_key:02X}:")
+        print(f"开始分析Sbox")
+        start_time = datetime.now()
+        for sbox_index in index_str_to_range(self.sbox_index_str):
+            correlation_arr_2d = analyze_process_cpa_cpu(self.data_arr_3d[sbox_index], self.sample_arr_2d)
+            (self.sbox_key_arr_2d[sbox_index],
+             self.sbox_keycorr_arr_2d[sbox_index],
+             self.sbox_keypos_arr_2d[sbox_index]) = rank_sbox_key_guesses(correlation_arr_2d, self.candidates)
 
-            # 显示所有候选密钥信息
-            for j in range(self.candidates):
-                key_candidate = self.sbox_key_arr_2d[i][j]
-                correlation_value = self.sbox_keycorr_arr_2d[i][j]
-                relative_pos = self.sbox_keypos_arr_2d[i][j]
-                absolute_pos = self.sample_first_pos + relative_pos
-                print(f"Key byte candidate: {key_candidate:02X}, "
-                      f"value: {correlation_value:.3f}, "
-                      f"at relative position: {relative_pos}, "
-                      f"absolute position: {absolute_pos}")
+            if self.traceset2_switch:
+                for i in range(self.sbox_size):
+                    trace_parameter_map = TraceParameterMap()
+                    trace = Trace(
+                        sample_coding=SampleCoding.FLOAT,
+                        samples=correlation_arr_2d[i],
+                        parameters=trace_parameter_map,
+                        title=f"Sbox{sbox_index}-KeyGuess_0x{i:02X}")
+                    self.traceset2.append(trace)
+            print(f"Sbox{sbox_index} 分析完成")
+        total_time = (datetime.now() - start_time).total_seconds()
+        print(f"所有Sbox分析完成! 总耗时:{total_time:.3f}秒")
+
+        self.finish_process()
 
     def recovery_key(self):
-        """执行密钥恢复"""
-        key = self.sbox_key_arr_2d[:, 0]
+        temp = self.sbox_key_arr_2d[:, 0]
 
         if self.crypto_direction == 0:
-            print("KEY:", ' '.join(f'{x:02X}' for x in key))
+            temp = self.sbox_key_arr_2d[:, 0]
+            print("KEY:", ' '.join(f'{x:02X}' for x in temp))
 
         if self.crypto_direction == 1:
-            temp = self.sbox_key_arr_2d[:, 0]
-
             aes = Aes()
-
             aes.set_state(temp)
             aes.shift_rows()
             temp = aes.get_state()
-
+            Nb = 4
+            wi = np.zeros(Nb, dtype=np.uint32)
+            for i in range(4):
+                wi[i] = ((np.uint32(temp[i * Nb + 0]) << 24) |
+                         (np.uint32(temp[i * Nb + 1]) << 16) |
+                         (np.uint32(temp[i * Nb + 2]) << 8) |
+                         np.uint32(temp[i * Nb + 3]))
+            Nk = 4
+            temp = aes_inv_keyexpansion(wi, 10, None, Nk)
             print("KEY:", ' '.join(f'{x:02X}' for x in temp))
-            #
-            # Nb = 4
-            # wi = np.zeros(Nb, dtype=np.uint32)
-            # for i in range(4):
-            #     wi[i] = ((np.uint32(temp[i * Nb + 0]) << 24) |
-            #              (np.uint32(temp[i * Nb + 1]) << 16) |
-            #              (np.uint32(temp[i * Nb + 2]) << 8) |
-            #              np.uint32(temp[i * Nb + 3]))
-            #
-            # Nk = 4
-            # key = aes_inv_keyexpansion(wi, 10, None, Nk)
-            # print("KEY:", ' '.join(f'{x:02X}' for x in key))
 
 
 if __name__ == '__main__':
     aes128_cpa = Aes128CPA()
     aes128_cpa.num_processes = 8
 
-    # # 第一轮攻击配置（加密）
-    # aes128_cpa.traceset_path = "D:\\traceset\\c51_aes128\\aes128_en.trs"
-    # aes128_cpa.traceset2_switch = False
-    # aes128_cpa.sample_first_pos = 70000
-    # aes128_cpa.sample_number = 500000
-    # aes128_cpa.crypto_direction = 0
-    # aes128_cpa.sbox_index_str = "0-15"
-    # aes128_cpa.analyze()
-
-    # 第二轮攻击配置（解密）
-    aes128_cpa.traceset_path = "D:\\traceset\\c51_aes128\\aes128_de+LowPass(20260216184059).trs"
+    # 第一轮攻击配置（加密）
+    aes128_cpa.traceset_path = "D:\\traceset\\c51_aes128\\aes128_en.trs"
     aes128_cpa.traceset2_switch = False
     aes128_cpa.sample_first_pos = 70000
+    aes128_cpa.sample_number = 500000
+    aes128_cpa.crypto_direction = 0
+    aes128_cpa.sbox_index_str = "0-15"
+    aes128_cpa.analyze()
+
+    # 第二轮攻击配置（解密）
+    aes128_cpa.traceset_path = "D:\\traceset\\c51_aes128\\aes128_de.trs"
+    aes128_cpa.traceset2_switch = False
+    aes128_cpa.sample_first_pos = 0
     aes128_cpa.sample_number = 500000
     aes128_cpa.crypto_direction = 1
     aes128_cpa.sbox_index_str = "0-15"
