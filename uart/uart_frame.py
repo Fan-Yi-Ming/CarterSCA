@@ -111,7 +111,7 @@ def validate_uart_frame(frame: bytes) -> bool:
     return True
 
 
-def parse_uart_frame(frame: bytes) -> tuple[int | None, bytes | None]:
+def parse_uart_frame(frame: bytes) -> tuple[int, bytes]:
     """
     解析UART帧并提取命令和数据
 
@@ -120,7 +120,6 @@ def parse_uart_frame(frame: bytes) -> tuple[int | None, bytes | None]:
 
     Returns:
         tuple: (command, data) - 命令字节和数据字节串
-        如果帧验证失败，command为None，data为None
     """
     # 首先验证帧的完整性
     if not validate_uart_frame(frame):

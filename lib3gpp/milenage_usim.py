@@ -173,17 +173,6 @@ class MilenageUsim:
         self.increaseSQN()
         return 0
 
-    def execute(self):
-        self.computeK()
-        self.computeOPc()
-        self.computeTEMP()
-        return self.kernel()
-
-    def execute_OPc(self):
-        self.computeK()
-        self.computeTEMP()
-        return self.kernel()
-
     def f1star(self, SQNms: np.array, AMF: np.array):
         # MAC_S
         IN1 = np.zeros(16, dtype=np.uint8)
@@ -208,6 +197,17 @@ class MilenageUsim:
         encrypt_result = self.aes128.encrypt(xor_result)
         OUT5 = np.bitwise_xor(encrypt_result, self.OPc)
         self.AK = OUT5[0:6]
+
+    def execute(self):
+        self.computeK()
+        self.computeOPc()
+        self.computeTEMP()
+        return self.kernel()
+
+    def execute_OPc(self):
+        self.computeK()
+        self.computeTEMP()
+        return self.kernel()
 
     def computeAUTS(self):
         AUTS_AMF = np.array([0x00, 0x00], dtype=np.uint8)

@@ -172,7 +172,7 @@ class SerialCommunicator:
         """
         # 解析命令APDU数据，验证格式正确性
         command_apdu = CommandAPDU()
-        if command_apdu.parse(command_apdu_bytes) != command_apdu.SUCCESS:
+        if command_apdu.check(command_apdu_bytes) != command_apdu.SUCCESS:
             raise serial.SerialException("CommandAPDU格式错误")
 
         # 将命令码和APDU数据封装为UART帧格式
@@ -214,6 +214,18 @@ class SerialCommunicator:
         return command, response_data, sw1, sw2
 
     def transmit(self, command: int, data: bytes) -> Tuple[int, bytes]:
+        """
+        发送通用命令并接收响应数据。
+
+        这是一个简化的通信方法，与transmit_apdu类似但处理更通用的数据格式。
+
+        :param command: 命令码，用于标识要执行的操作
+        :param data: 要发送的数据字节序列
+        :return: 二元组包含：
+                 - 命令码 (int)
+                 - 接收到的完整响应数据字节序列 (bytes)
+        :raises SerialException: 当UART帧解析失败时抛出
+        """
         frame = create_uart_frame(command, data)
 
         received_bytes = self.send_and_receive(frame, 10)

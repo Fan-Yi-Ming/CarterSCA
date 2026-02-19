@@ -16,9 +16,9 @@ class CommandAPDU:
         self.has_le = False
         self.data = bytes()
 
-    def parse(self, command_apdu_bytes: bytes) -> int:
+    def check(self, command_apdu_bytes: bytes) -> int:
         """
-        解析APDU字节数据
+        检查APDU字节数据
 
         Args:
             command_apdu_bytes: APDU字节数据 (bytes类型)
