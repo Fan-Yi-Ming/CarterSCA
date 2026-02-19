@@ -73,18 +73,18 @@ def process_single_trace(traceset_path, trace_index,
 class Aes128CPA:
 
     def __init__(self):
-        self.candidates = 4
-        self.num_processes = cpu_count()
-        self.num_batch_size = 10000
+        self.candidates: int = 4
+        self.num_processes: int = cpu_count()
+        self.num_batch_size: int = 10000
 
-        self.trace_number = 0
-        self.sample_first_pos = 0
-        self.sample_number = 0
+        self.trace_number: int = 0
+        self.sample_first_pos: int = 0
+        self.sample_number: int = 0
 
-        self.crypto_direction = 0  # 0加密 1解密
+        self.crypto_direction: int = 0  # 0加密 1解密
 
-        self.sbox_num = 16
-        self.sbox_size = 256
+        self.sbox_num: int = 16
+        self.sbox_size: int = 256
         self.sbox_index_arr = None
 
         self.sbox_key_result_path = "./aes128_cpa_sbox_key_result.npz"
@@ -149,11 +149,10 @@ class Aes128CPA:
 
             base_name = os.path.splitext(os.path.basename(self.traceset_path))[0]
             timestamp = datetime.now().strftime("%H%M%S")
-            new_base_name = f"{base_name}+AES128CPA({timestamp})"
-            traceset2_path = os.path.join(
-                os.path.dirname(self.traceset_path),
-                new_base_name + os.path.splitext(self.traceset_path)[1]
-            )
+            new_base_name = f"{base_name}+Aes128CPA({timestamp})"
+            traceset2_path = os.path.join(os.path.dirname(self.traceset_path),
+                                          new_base_name + os.path.splitext(self.traceset_path)[1])
+
             self.traceset2 = trsfile.trs_open(
                 path=traceset2_path,
                 mode='w',
@@ -303,7 +302,7 @@ if __name__ == '__main__':
     aes128_cpa.num_processes = 8
 
     # 第一轮攻击配置（加密）
-    aes128_cpa.traceset_path = "D:\\traceset\\c51_aes128\\aes128_en.trs"
+    aes128_cpa.traceset_path = "D:\\traceset\\c51_aes128\\aes128_en+LowPass(125849)+StaticAlign(151329).trs"
     aes128_cpa.traceset2_switch = False
     aes128_cpa.sample_first_pos = 70000
     aes128_cpa.sample_number = 500000
@@ -311,11 +310,11 @@ if __name__ == '__main__':
     aes128_cpa.sbox_index_arr = index_str_to_range("0-15")
     aes128_cpa.analyze()
 
-    # 第二轮攻击配置（解密）
-    aes128_cpa.traceset_path = "D:\\traceset\\c51_aes128\\aes128_de.trs"
-    aes128_cpa.traceset2_switch = False
-    aes128_cpa.sample_first_pos = 0
-    aes128_cpa.sample_number = 500000
-    aes128_cpa.crypto_direction = 1
-    aes128_cpa.sbox_index_arr = index_str_to_range("0-15")
-    aes128_cpa.analyze()
+    # # 第二轮攻击配置（解密）
+    # aes128_cpa.traceset_path = "D:\\traceset\\c51_aes128\\aes128_de.trs"
+    # aes128_cpa.traceset2_switch = False
+    # aes128_cpa.sample_first_pos = 0
+    # aes128_cpa.sample_number = 500000
+    # aes128_cpa.crypto_direction = 1
+    # aes128_cpa.sbox_index_arr = index_str_to_range("0-15")
+    # aes128_cpa.analyze()

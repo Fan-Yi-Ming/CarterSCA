@@ -4,7 +4,6 @@ from multiprocessing import Pool, cpu_count
 import numpy as np
 import trsfile
 from datetime import datetime
-from typing import Tuple
 import trsfile.traceparameter as tp
 from trsfile import Header, TracePadding, SampleCoding, Trace
 
@@ -31,9 +30,7 @@ def fast_lowpass_filter(signal: np.ndarray, weight: float) -> np.ndarray:
     return backward_pass
 
 
-def process_single_trace(args: Tuple) -> Tuple[int, Trace]:
-    trace_index, trace, weight = args
-
+def process_single_trace(trace, weight) -> Trace:
     # 执行零相位低通滤波
     low_pass_samples = fast_lowpass_filter(trace.samples, weight)
 
@@ -42,116 +39,89 @@ def process_single_trace(args: Tuple) -> Tuple[int, Trace]:
         sample_coding=SampleCoding.FLOAT,
         samples=low_pass_samples,
         parameters=trace.parameters,
-        title=trace.title)
+        title=trace.title,
+        headers=trace.headers)
 
-    return trace_index, low_pass_trace
+    return low_pass_trace
 
 
 class LowPass:
-    """
-    多进程零相位低通滤波器（适用于大规模 .trs 能量迹集）
-    高效抑制高频噪声，同时完全保持信号时序对齐
-    """
-
     def __init__(self):
-        # 滤波参数
-        self.weight = 1.0  # 滤波权重（越大越平滑）
-        self.num_processes = cpu_count()  # 并行进程数
+        self.num_processes: int = cpu_count()
 
-        # 文件句柄
-        self.traceset = None  # 输入迹线集
-        self.traceset_path: str = ""  # 输入文件路径
-        self.traceset2 = None  # 输出迹线集
+        # 滤波参数
+        self.weight: float = 1.0
+
+        self.traceset = None
+        self.traceset_path: str = ""
+        self.traceset2 = None
 
     def open_traceset(self):
-        """打开原始文件并创建带时间戳的新输出文件"""
         self.traceset = trsfile.open(self.traceset_path, 'r')
 
-        # 生成新文件名：原名 + LowPass + 时间戳
+        headers = copy.deepcopy(self.traceset.get_headers())
+        headers[Header.NUMBER_TRACES] = 0
+        headers[Header.SAMPLE_CODING] = SampleCoding.FLOAT
+        headers[Header.TRACE_SET_PARAMETERS]["LOW_PASS_WEIGHT"] = tp.FloatArrayParameter([self.weight])
+
         base_name = os.path.splitext(os.path.basename(self.traceset_path))[0]
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        timestamp = datetime.now().strftime("%H%M%S")
         new_base_name = f"{base_name}+LowPass({timestamp})"
         traceset2_path = os.path.join(os.path.dirname(self.traceset_path),
                                       new_base_name + os.path.splitext(self.traceset_path)[1])
 
-        # 复制头信息并更新关键字段
-        new_headers = copy.deepcopy(self.traceset.get_headers())
-        new_headers[Header.NUMBER_TRACES] = 0
-        new_headers[Header.SAMPLE_CODING] = SampleCoding.FLOAT
-        new_headers[Header.TRACE_SET_PARAMETERS]["LOW_PASS_WEIGHT"] = tp.FloatArrayParameter([self.weight])
-
-        # 创建输出文件（实时更新模式）
         self.traceset2 = trsfile.trs_open(
             path=traceset2_path,
             mode='w',
             engine='TrsEngine',
-            headers=new_headers,
+            headers=headers,
             padding_mode=TracePadding.AUTO,
             live_update=True
         )
 
     def close_traceset(self):
-        """安全关闭输入输出文件"""
         if self.traceset:
             self.traceset.close()
-            self.traceset = None
         if self.traceset2:
             self.traceset2.close()
-            self.traceset2 = None
 
     def low_pass(self):
-        """主滤波流程：分批多进程并行处理 + 顺序写入 + 进度显示"""
         self.open_traceset()
+        trace_number = self.traceset.get_headers()[Header.NUMBER_TRACES]
+        start_time = datetime.now()
+        print(f"开始低通滤波 {trace_number} 条迹线")
 
-        try:
-            number_traces = self.traceset.get_headers()[Header.NUMBER_TRACES]
-            print(f"开始处理 {number_traces} 条迹线...")
-            print(f"使用 {self.num_processes} 个进程并行处理")
+        batch_size = self.num_processes
+        batch_number = (trace_number + batch_size - 1) // batch_size
 
-            num_batches = (number_traces + self.num_processes - 1) // self.num_processes
-            print(f"总共分为 {num_batches} 批进行处理")
+        # 多进程并行加载
+        with Pool(processes=self.num_processes) as pool:
+            for batch_idx in range(batch_number):
+                start_idx = batch_idx * batch_size
+                end_idx = min((batch_idx + 1) * batch_size, trace_number)
+                current_batch_size = end_idx - start_idx
+                print(f"批{batch_idx + 1}/{batch_number} ({current_batch_size}条)")
 
-            with Pool(processes=self.num_processes) as pool:
-                for batch_idx in range(num_batches):
-                    print(f"\n开始处理第 {batch_idx + 1}/{num_batches} 批...")
+                # 准备任务参数
+                batch_tasks = [(self.traceset[start_idx + i], self.weight) for i in range(current_batch_size)]
 
-                    start_idx = batch_idx * self.num_processes
-                    end_idx = min((batch_idx + 1) * self.num_processes, number_traces)
-                    batch_size = end_idx - start_idx
+                # 并行处理
+                batch_results = pool.starmap(process_single_trace, batch_tasks)
 
-                    # 构造当前批次任务
-                    tasks = [(start_idx + i,
-                              self.traceset[start_idx + i],
-                              self.weight) for i in range(batch_size)]
+                # 写入结果
+                for low_pass_trace in batch_results:
+                    self.traceset2.append(low_pass_trace)
 
-                    # 并行滤波
-                    results = pool.map(process_single_trace, tasks)
-                    results.sort(key=lambda x: x[0])  # 保持原始顺序
-
-                    # 顺序写入输出文件
-                    for _, trace in results:
-                        self.traceset2.append(trace)
-
-                    print(f"第 {batch_idx + 1} 批处理完成，写入 {batch_size} 条迹线")
-                    print(f"进度: {end_idx}/{number_traces} ({end_idx / number_traces * 100:.1f}%)")
-
-            print(f"\n所有批处理完成！总共处理了 {number_traces} 条迹线")
-
-        except Exception as e:
-            print(f"处理过程中发生错误: {e}")
-            raise
-        finally:
-            self.close_traceset()
+        total_time = (datetime.now() - start_time).total_seconds()
+        print(f"低通滤波完成 用时:{total_time:.3f}秒")
+        self.close_traceset()
 
 
 if __name__ == '__main__':
-    # ==================== 使用示例 ====================
     low_pass = LowPass()
-
     low_pass.num_processes = 16
 
     low_pass.weight = 20.0
-
-    low_pass.traceset_path = "D:\\traceset\\c51_aes128\\aes128_de.trs"
+    low_pass.traceset_path = "D:\\traceset\\c51_aes128\\aes128_en.trs"
 
     low_pass.low_pass()
