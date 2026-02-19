@@ -85,8 +85,9 @@ class Aes128CPA:
 
         self.sbox_num = 16
         self.sbox_size = 256
-        self.sbox_index_str = "0-15"
+        self.sbox_index_arr = None
 
+        self.sbox_key_result_path = "./aes128_cpa_sbox_key_result.npz"
         # 攻击结果数组: [sbox_num, candidates]
         self.sbox_key_arr_2d = np.zeros((self.sbox_num, self.candidates), dtype=np.uint8)
         self.sbox_keycorr_arr_2d = np.zeros((self.sbox_num, self.candidates), dtype=np.float32)
@@ -104,11 +105,12 @@ class Aes128CPA:
     def init_process(self):
         self.open_traceset()
         self.open_traceset2()
-
+        self.load_sbox_key_result()
         self.data_arr_3d = np.zeros((self.sbox_num, self.trace_number, self.sbox_size), dtype=np.float32)
         self.sample_arr_2d = np.zeros((self.trace_number, self.sample_number), dtype=np.float32)
 
     def finish_process(self):
+        self.save_sbox_key_result()
         self.report()
         self.recovery_key()
         self.close_traceset()
@@ -128,7 +130,7 @@ class Aes128CPA:
             print(f"自动调整样本点数量为: {self.sample_number}")
 
     def open_traceset2(self):
-        if self.traceset2_switch == True:
+        if self.traceset2_switch:
             traceset_parameter_map = TraceSetParameterMap()
 
             trace_parameter_definition_map = TraceParameterDefinitionMap()
@@ -166,17 +168,51 @@ class Aes128CPA:
             self.traceset.close()
 
     def close_traceset2(self):
-        if self.traceset2_switch == True:
+        if self.traceset2_switch:
             if self.traceset2:
                 self.traceset2.close()
 
     def report(self):
-        for sbox_index in index_str_to_range(self.sbox_index_str):
+        for sbox_index in self.sbox_index_arr:
             report_sbox_key_guesses(sbox_index,
                                     self.sbox_key_arr_2d[sbox_index],
                                     self.sbox_keycorr_arr_2d[sbox_index],
                                     self.sbox_keypos_arr_2d[sbox_index],
                                     self.sample_first_pos)
+
+    def save_sbox_key_result(self):
+        try:
+            np.savez(
+                self.sbox_key_result_path,
+                sbox_key_arr_2d=self.sbox_key_arr_2d,
+                sbox_keycorr_arr_2d=self.sbox_keycorr_arr_2d,
+                sbox_keypos_arr_2d=self.sbox_keypos_arr_2d
+            )
+            print(f"Sbox分析结果已保存")
+        except Exception as e:
+            print(f"Sbox分析结果保存失败: {e}")
+
+    def load_sbox_key_result(self):
+        if not os.path.exists(self.sbox_key_result_path):
+            return
+
+        try:
+            data = np.load(self.sbox_key_result_path)
+            self.sbox_key_arr_2d = data['sbox_key_arr_2d']
+            self.sbox_keycorr_arr_2d = data['sbox_keycorr_arr_2d']
+            self.sbox_keypos_arr_2d = data['sbox_keypos_arr_2d']
+            print(f"Sbox分析结果已加载")
+            if self.sbox_key_arr_2d.shape[1] != self.candidates:
+                self.candidates = self.sbox_key_arr_2d.shape[1]
+                print(f"candidates 已调整为 {self.candidates} 以匹配历史数据。"
+                      f"如需重置candidates，请删除: {self.sbox_key_result_path}")
+        except Exception as e:
+            print(f"Sbox分析结果加载失败: {e}")
+            try:
+                os.remove(self.sbox_key_result_path)
+                print(f"已删除损坏文件: {self.sbox_key_result_path}")
+            except Exception as delete_error:
+                print(f"删除损坏文件失败: {delete_error}")
 
     def load_samples_and_creat_intermediates(self):
         start_time = datetime.now()
@@ -217,7 +253,7 @@ class Aes128CPA:
 
         print(f"开始分析Sbox")
         start_time = datetime.now()
-        for sbox_index in index_str_to_range(self.sbox_index_str):
+        for sbox_index in self.sbox_index_arr:
             correlation_arr_2d = analyze_process_cpa_cpu(self.data_arr_3d[sbox_index], self.sample_arr_2d)
             (self.sbox_key_arr_2d[sbox_index],
              self.sbox_keycorr_arr_2d[sbox_index],
@@ -272,7 +308,7 @@ if __name__ == '__main__':
     aes128_cpa.sample_first_pos = 70000
     aes128_cpa.sample_number = 500000
     aes128_cpa.crypto_direction = 0
-    aes128_cpa.sbox_index_str = "0-15"
+    aes128_cpa.sbox_index_arr = index_str_to_range("0-15")
     aes128_cpa.analyze()
 
     # 第二轮攻击配置（解密）
@@ -281,5 +317,5 @@ if __name__ == '__main__':
     aes128_cpa.sample_first_pos = 0
     aes128_cpa.sample_number = 500000
     aes128_cpa.crypto_direction = 1
-    aes128_cpa.sbox_index_str = "0-15"
+    aes128_cpa.sbox_index_arr = index_str_to_range("0-15")
     aes128_cpa.analyze()

@@ -32,16 +32,12 @@ def fast_lowpass_filter(signal: np.ndarray, weight: float) -> np.ndarray:
 
 
 def process_single_trace(args: Tuple) -> Tuple[int, Trace]:
-    """
-    多进程工作函数：对单条迹线执行低通滤波
-    返回：(原始索引, 滤波后迹线对象)
-    """
     trace_index, trace, weight = args
 
     # 执行零相位低通滤波
     low_pass_samples = fast_lowpass_filter(trace.samples, weight)
 
-    # 构造滤波后迹线（强制转为浮点编码）
+    # 构造滤波后迹线
     low_pass_trace = Trace(
         sample_coding=SampleCoding.FLOAT,
         samples=low_pass_samples,
