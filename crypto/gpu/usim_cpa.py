@@ -109,9 +109,7 @@ def process_single_trace(args: Tuple) -> Tuple[int, np.array, np.array]:
 
 class UsimCPA:
     """
-    USIM CPA攻击处理器
-
-    实现两轮攻击策略：
+    两轮攻击：
     - 第一轮攻击: 恢复 K ⊕ OPC (密钥与OPC的异或值)
     - 第二轮攻击: 使用第一轮结果恢复完整密钥K和OPC
     """

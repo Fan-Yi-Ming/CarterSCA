@@ -310,11 +310,11 @@ if __name__ == '__main__':
     aes128_cpa.sbox_index_arr = index_str_to_range("0-15")
     aes128_cpa.analyze()
 
-    # # 第二轮攻击配置（解密）
-    # aes128_cpa.traceset_path = "D:\\traceset\\c51_aes128\\aes128_de.trs"
-    # aes128_cpa.traceset2_switch = False
-    # aes128_cpa.sample_first_pos = 0
-    # aes128_cpa.sample_number = 500000
-    # aes128_cpa.crypto_direction = 1
-    # aes128_cpa.sbox_index_arr = index_str_to_range("0-15")
-    # aes128_cpa.analyze()
+    # 第二轮攻击配置（解密）
+    aes128_cpa.traceset_path = "D:\\traceset\\c51_aes128\\aes128_de.trs"
+    aes128_cpa.traceset2_switch = False
+    aes128_cpa.sample_first_pos = 0
+    aes128_cpa.sample_number = 500000
+    aes128_cpa.crypto_direction = 1
+    aes128_cpa.sbox_index_arr = index_str_to_range("0-15")
+    aes128_cpa.analyze()
