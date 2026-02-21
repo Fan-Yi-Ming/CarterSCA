@@ -1,16 +1,13 @@
 import os
 import numpy as np
 import trsfile
-# import trsfile.traceparameter as tp
 from datetime import datetime
 from trsfile import SampleCoding, Trace, Header, TracePadding
 from trsfile.parametermap import TraceParameterMap, TraceSetParameterMap, TraceParameterDefinitionMap
 from typing import Tuple
 from multiprocessing import Pool, cpu_count
 from tools.aes import Aes, aes_inv_keyexpansion
-from tools.sca import (hw, index_str_to_range,
-                       rank_sbox_key_guesses, analyze_process_cpa_gpu,
-                       report_sbox_key_guesses)
+from tools.sca import hw, index_str_to_range, rank_sbox_key_guesses, analyze_process_cpa_gpu, report_sbox_key_guesses
 
 
 def process_single_trace(traceset_path, trace_index,
@@ -28,6 +25,7 @@ def process_single_trace(traceset_path, trace_index,
     input_arr = np.frombuffer(bytes(trace.parameters["INPUT"].value), dtype=np.uint8)[0:16]
     Nb = 4
     wi = np.zeros(Nb, dtype=np.uint32)
+
     if crypto_direction == 0:
         for i in range(sbox_size):
             aes.set_state(input_arr)
@@ -74,8 +72,8 @@ class Aes128CPA:
 
     def __init__(self):
         self.candidates: int = 4
-        self.num_processes: int = cpu_count()
-        self.num_batch_size: int = 10000
+        self.process_number: int = cpu_count()
+        self.batch_size: int = 10000
 
         self.trace_number: int = 0
         self.sample_first_pos: int = 0
@@ -221,7 +219,7 @@ class Aes128CPA:
         batch_number = (self.trace_number + batch_size - 1) // batch_size
 
         # 多进程并行加载
-        with Pool(processes=self.num_processes) as pool:
+        with Pool(processes=self.process_number) as pool:
             for batch_idx in range(batch_number):
                 start_idx = batch_idx * batch_size
                 end_idx = min((batch_idx + 1) * batch_size, self.trace_number)
@@ -229,8 +227,9 @@ class Aes128CPA:
                 print(f"批{batch_idx + 1}/{batch_number} ({current_batch_size}条)")
 
                 # 准备任务参数
-                batch_tasks = [(self.traceset_path, start_idx + i, self.sample_first_pos,
-                                self.sample_number, self.sbox_num, self.sbox_size,
+                batch_tasks = [(self.traceset_path, start_idx + i,
+                                self.sample_first_pos, self.sample_number,
+                                self.sbox_num, self.sbox_size,
                                 self.crypto_direction) for i in range(current_batch_size)]
 
                 # 并行处理
@@ -243,7 +242,7 @@ class Aes128CPA:
                     self.data_arr_3d[:, trace_index, :] = data_arr_2d
 
         total_time = (datetime.now() - start_time).total_seconds()
-        print(f"加载完成 用时:{total_time:.3f}秒")
+        print(f"所有迹线加载完成 用时:{total_time:.3f}秒")
 
     def analyze(self):
         self.init_process()
@@ -253,7 +252,8 @@ class Aes128CPA:
         print(f"开始分析Sbox")
         start_time = datetime.now()
         for sbox_index in self.sbox_index_arr:
-            correlation_arr_2d = analyze_process_cpa_gpu(self.data_arr_3d[sbox_index], self.sample_arr_2d)
+            correlation_arr_2d = analyze_process_cpa_gpu(self.data_arr_3d[sbox_index], self.sample_arr_2d,
+                                                         self.batch_size)
             (self.sbox_key_arr_2d[sbox_index],
              self.sbox_keycorr_arr_2d[sbox_index],
              self.sbox_keypos_arr_2d[sbox_index]) = rank_sbox_key_guesses(correlation_arr_2d, self.candidates)
@@ -269,7 +269,7 @@ class Aes128CPA:
                     self.traceset2.append(trace)
             print(f"Sbox{sbox_index} 分析完成")
         total_time = (datetime.now() - start_time).total_seconds()
-        print(f"所有Sbox分析完成! 总耗时:{total_time:.3f}秒")
+        print(f"所有Sbox分析完成 用时:{total_time:.3f}秒")
 
         self.finish_process()
 
@@ -299,10 +299,10 @@ class Aes128CPA:
 
 if __name__ == '__main__':
     aes128_cpa = Aes128CPA()
-    aes128_cpa.num_processes = 8
+    aes128_cpa.process_number = 8
 
     # 第一轮攻击配置（加密）
-    aes128_cpa.traceset_path = "D:\\traceset\\c51_aes128\\aes128_en+LowPass(125849)+StaticAlign(151329).trs"
+    aes128_cpa.traceset_path = "D:\\traceset\\c51_aes128\\aes128_en.trs"
     aes128_cpa.traceset2_switch = False
     aes128_cpa.sample_first_pos = 70000
     aes128_cpa.sample_number = 500000

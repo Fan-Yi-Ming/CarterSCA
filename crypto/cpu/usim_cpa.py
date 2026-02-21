@@ -8,7 +8,7 @@ from trsfile.parametermap import TraceParameterMap, TraceSetParameterMap, TraceP
 from typing import Tuple
 from multiprocessing import Pool, cpu_count
 from tools.aes import Aes, aes_inv_keyexpansion
-from tools.sca import hw, index_str_to_range, rank_sbox_key_guesses, analyze_process_cpa_gpu, report_sbox_key_guesses
+from tools.sca import hw, index_str_to_range, rank_sbox_key_guesses, analyze_process_cpa_cpu, report_sbox_key_guesses
 
 
 def process_single_trace(traceset_path, trace_index,
@@ -274,8 +274,7 @@ class UsimCPA:
         print(f"开始分析Sbox")
         start_time = datetime.now()
         for sbox_index in self.sbox_index_arr:
-            correlation_arr_2d = analyze_process_cpa_gpu(self.data_arr_3d[sbox_index], self.sample_arr_2d,
-                                                         self.batch_size)
+            correlation_arr_2d = analyze_process_cpa_cpu(self.data_arr_3d[sbox_index], self.sample_arr_2d)
             (self.sbox_key_arr_3d[self.attack_round_index][sbox_index],
              self.sbox_keycorr_arr_3d[self.attack_round_index][sbox_index],
              self.sbox_keypos_arr_3d[self.attack_round_index][sbox_index]) = rank_sbox_key_guesses(correlation_arr_2d,
