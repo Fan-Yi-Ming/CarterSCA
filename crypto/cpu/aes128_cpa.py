@@ -81,11 +81,11 @@ class Aes128CPA:
         self.sample_first_pos: int = 0
         self.sample_number: int = 0
 
-        self.crypto_direction: int = 0  # 0加密 1解密
-
         self.sbox_num: int = 16
         self.sbox_size: int = 256
         self.sbox_index_arr = None
+
+        self.crypto_direction: int = 0  # 0加密 1解密
 
         self.sbox_key_result_path = "./aes128_cpa_sbox_key_result.npz"
         # 攻击结果数组: [sbox_num, candidates]
