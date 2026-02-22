@@ -143,7 +143,7 @@ class SerialCommunicator:
         self.send_data(data)
         return self.receive_data(expect_length)
 
-    def transmit_apdu(self, command: int, command_apdu_bytes: bytes) -> Tuple[int, bytes, int, int]:
+    def transmit_apdu(self, command: int, apdu: bytes) -> Tuple[int, bytes, int, int]:
         """
         发送APDU命令到设备并接收响应数据。
 
@@ -158,7 +158,7 @@ class SerialCommunicator:
         - 从第二帧响应中提取状态字和响应数据
 
         :param command: 命令码，用于标识要执行的APDU操作
-        :param command_apdu_bytes: APDU命令的字节序列数据
+        :param apdu: APDU命令的字节序列数据
         :return: 四元组包含：
                  - 命令码 (int)
                  - 响应数据字节序列 (bytes)，不包含状态字
@@ -172,11 +172,11 @@ class SerialCommunicator:
         """
         # 解析命令APDU数据，验证格式正确性
         command_apdu = CommandAPDU()
-        if command_apdu.check(command_apdu_bytes) != command_apdu.SUCCESS:
+        if command_apdu.check(apdu) != command_apdu.SUCCESS:
             raise serial.SerialException("CommandAPDU格式错误")
 
         # 将命令码和APDU数据封装为UART帧格式
-        frame = create_uart_frame(command, command_apdu_bytes)
+        frame = create_uart_frame(command, apdu)
 
         # 发送UART帧并接收第一帧响应（包含响应数据长度信息）
         # 第一帧响应长度为：UART帧最小长度 + 2字节长度字段
