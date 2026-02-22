@@ -1,14 +1,14 @@
 import serial
 import serial.tools.list_ports
-from typing import Tuple
 
+from typing import Tuple
 from uart.apdu import CommandAPDU
 from uart.uart_frame import create_uart_frame, parse_uart_frame, UART_FRAME_MIN_LENGTH
 
 
-def list_available_serial_ports():
+def list_serial_ports():
     """
-    列出系统中所有可用的串口端口。
+    列出系统中所有串口端口。
 
     :return: 可用串口端口名称的列表
     """
@@ -255,7 +255,7 @@ class SerialCommunicator:
 
 
 if __name__ == '__main__':
-    list_available_serial_ports()
+    list_serial_ports()
 
     # 使用上下文管理器，确保串口正确关闭
     with SerialCommunicator() as serial_communicator:

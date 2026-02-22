@@ -113,7 +113,7 @@ if __name__ == '__main__':
             # 输出采集耗时
             elapsed_time = time.monotonic() - start_time
             print(f"第 {successful_count}/{gatherer_sds804x_acquisition_times} 次采集完成，"
-                  f"耗时: {elapsed_time:.2f} 秒")
+                  f"用时 {elapsed_time:.3f} 秒")
 
         except Exception as e:
             # 异常处理
@@ -122,7 +122,7 @@ if __name__ == '__main__':
 
             print(f"采集发生异常，异常次数: {current_exception_count}/{max_exception_count}")
             print(f"异常信息: {str(e)}")
-            print(f"耗时: {elapsed_time:.2f} 秒")
+            print(f"用时 {elapsed_time:.3f} 秒")
 
             time.sleep(3)
             exception_happened = True

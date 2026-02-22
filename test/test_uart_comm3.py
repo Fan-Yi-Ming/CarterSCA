@@ -1,12 +1,12 @@
 import time
 
-from uart.serial_reader import list_available_serial_ports, SerialCommunicator
+from uart.serial_reader import list_serial_ports, SerialCommunicator
 from uart.uart_frame import create_uart_frame
 
 # C51 AES128
 if __name__ == '__main__':
     # 列出系统中所有可用的串口端口。
-    list_available_serial_ports()
+    list_serial_ports()
 
     # 使用上下文管理器，确保串口正确关闭
     with SerialCommunicator() as serial_communicator:

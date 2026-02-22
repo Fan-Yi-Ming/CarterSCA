@@ -1,5 +1,5 @@
 import numpy as np
-from uart.serial_reader import list_available_serial_ports, SerialCommunicator
+from uart.serial_reader import list_serial_ports, SerialCommunicator
 from uart.uart_frame import create_uart_frame, parse_uart_frame
 from lib3gpp.milenage_auc import MilenageAuc
 from tools.sca import generate_random_hex_string
@@ -16,7 +16,7 @@ if __name__ == '__main__':
     milenageAuc.SQN = np.array([0x00, 0x00, 0x00, 0x00, 0x00, 0xFF], dtype=np.uint8)
     milenageAuc.AMF = np.array([0x80, 0x00], dtype=np.uint8)
 
-    list_available_serial_ports()
+    list_serial_ports()
 
     # 使用上下文管理器，确保串口正确关闭
     with SerialCommunicator() as serial_communicator:
