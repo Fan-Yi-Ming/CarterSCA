@@ -2,6 +2,7 @@ import os
 import numpy as np
 import trsfile
 import trsfile.traceparameter as tp
+import time
 from datetime import datetime
 from trsfile import SampleCoding, Trace, Header, TracePadding
 from trsfile.parametermap import TraceParameterMap, TraceSetParameterMap, TraceParameterDefinitionMap
@@ -233,7 +234,7 @@ class UsimCPA:
                 print(f"删除损坏文件失败: {delete_error}")
 
     def load_samples_and_creat_intermediates(self):
-        start_time = datetime.now()
+        start_time = time.monotonic()
         print(f"开始加载 {self.trace_number} 条迹线")
 
         batch_size = 100
@@ -263,8 +264,8 @@ class UsimCPA:
                     self.sample_arr_2d[trace_index] = sample_arr
                     self.data_arr_3d[:, trace_index, :] = data_arr_2d
 
-        total_time = (datetime.now() - start_time).total_seconds()
-        print(f"所有迹线加载完成 用时:{total_time:.3f}秒")
+        elapsed_time = time.monotonic() - start_time
+        print(f"所有迹线加载完成 用时 {elapsed_time:.3f} 秒")
 
     def analyze(self):
         self.init_process()
@@ -272,7 +273,7 @@ class UsimCPA:
         self.load_samples_and_creat_intermediates()
 
         print(f"开始分析Sbox")
-        start_time = datetime.now()
+        start_time = time.monotonic()
         for sbox_index in self.sbox_index_arr:
             correlation_arr_2d = analyze_process_cpa_cpu(self.data_arr_3d[sbox_index], self.sample_arr_2d)
             (self.sbox_key_arr_3d[self.attack_round_index][sbox_index],
@@ -290,8 +291,8 @@ class UsimCPA:
                         title=f"Sbox{sbox_index}-KeyGuess_0x{i:02X}")
                     self.traceset2.append(trace)
             print(f"Sbox{sbox_index} 分析完成")
-        total_time = (datetime.now() - start_time).total_seconds()
-        print(f"所有Sbox分析完成 用时:{total_time:.3f}秒")
+        elapsed_time = time.monotonic() - start_time
+        print(f"所有Sbox分析完成 用时 {elapsed_time:.3f} 秒")
 
         self.finish_process()
 

@@ -1,14 +1,13 @@
 import os
+import scipy.stats as stats
+import numpy as np
+import trsfile
 import time
 from datetime import datetime
 from typing import Tuple
-
-import numpy as np
-import trsfile
 from trsfile import SampleCoding, Trace, Header, TracePadding
 from trsfile.parametermap import TraceParameterMap, TraceSetParameterMap, TraceParameterDefinitionMap
 from multiprocessing import Pool, cpu_count
-import scipy.stats as stats
 
 
 def process_single_trace(traceset_path, trace_index) -> Tuple[int]:
@@ -36,7 +35,7 @@ def process_single_trace2(traceset_path, trace_index, sample_first_pos, sample_n
     return group_value, sample_arr
 
 
-def t_test(fix_sample_arr_2d, rnd_sample_arr_2d):
+def t_test_core(fix_sample_arr_2d, rnd_sample_arr_2d):
     """执行向量化的t检验，返回t值和p值"""
     fix_mean = np.mean(fix_sample_arr_2d, axis=0)
     rnd_mean = np.mean(rnd_sample_arr_2d, axis=0)
@@ -147,8 +146,8 @@ class TVLATest:
                         self.rnd_trace_number += 1
 
         elapsed_time = time.monotonic() - start_time
-        print(f"完成固定组组数和随机组组数统计 用时 {elapsed_time:.3f} 秒")
-        print(f"固定组 {self.fix_trace_number} 随机组 {self.rnd_trace_number}")
+        print(f"完成统计 固定组组数 {self.fix_trace_number} 随机组组数 {self.rnd_trace_number} "
+              f"用时 {elapsed_time:.3f} 秒")
 
     def open_traceset2(self):
         """创建并打开用于存储TVLA结果的TRS文件"""
@@ -228,7 +227,7 @@ class TVLATest:
         elapsed_time = time.monotonic() - start_time
         print(f"所有迹线加载完成 用时 {elapsed_time:.3f}秒")
 
-    def calculate_t_test(self):
+    def t_test(self):
         self.init_process()
         self.load_samples()
 
@@ -237,7 +236,7 @@ class TVLATest:
 
         useful_trace_number = min(self.fix_trace_number, self.rnd_trace_number)
         print(f"使用 {useful_trace_number} 条迹线进行T-test")
-        self.t_values, self.p_values = t_test(
+        self.t_values, self.p_values = t_test_core(
             self.fix_sample_arr_2d[:useful_trace_number],
             self.rnd_sample_arr_2d[:useful_trace_number]
         )
@@ -294,4 +293,4 @@ if __name__ == '__main__':
     tvla_test.t_value_threshold = 4.5
     tvla_test.traceset_path = "D:\\traceset\\aes128_en_tvla+LowPass(155914)+StaticAlign(160423).trs"
 
-    tvla_test.calculate_t_test()
+    tvla_test.t_test()
