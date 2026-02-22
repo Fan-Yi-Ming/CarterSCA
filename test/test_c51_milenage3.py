@@ -18,48 +18,48 @@ if __name__ == '__main__':
 
     list_serial_ports()
 
-    # 使用上下文管理器，确保串口正确关闭
-    with SerialCommunicator() as serial_communicator:
-        # 设置超时时间为1秒
-        serial_communicator.open_connection(port="COM3", baudrate=115200, timeout=1.0)
+    serial_communicator = SerialCommunicator()
+    serial_communicator.open_connection(port="COM3", baudrate=115200, timeout=1.0)
 
-        frame = create_uart_frame(0x04, bytes.fromhex(""))
-        serial_communicator.send_and_receive(frame, 8)
+    frame = create_uart_frame(0x04, bytes.fromhex(""))
+    serial_communicator.send_and_receive(frame, 8)
 
-        for i in range(3):
-            print("Auc SQN: " + " ".join(f"0x{value:02X}" for value in milenageAuc.SQN))
-            rand_hex = generate_random_hex_string(16)
-            milenageAuc.RAND = np.frombuffer(bytes.fromhex(rand_hex), dtype=np.uint8)
-            print("Generated RAND: " + " ".join(f"0x{value:02X}" for value in milenageAuc.RAND))
-            milenageAuc.execute_OPc()
-            print("Generated RES: " + " ".join(f"0x{value:02X}" for value in milenageAuc.RES))
-            print("Generated CK: " + " ".join(f"0x{value:02X}" for value in milenageAuc.CK))
-            print("Generated IK: " + " ".join(f"0x{value:02X}" for value in milenageAuc.IK))
-            print("Generated AUTN: " + " ".join(f"0x{value:02X}" for value in milenageAuc.AUTN))
-            rand_hex = " ".join(f"{value:02X}" for value in milenageAuc.RAND)
-            autn_hex = " ".join(f"{value:02X}" for value in milenageAuc.AUTN)
+    for i in range(3):
+        print("Auc SQN: " + " ".join(f"0x{value:02X}" for value in milenageAuc.SQN))
+        rand_hex = generate_random_hex_string(16)
+        milenageAuc.RAND = np.frombuffer(bytes.fromhex(rand_hex), dtype=np.uint8)
+        print("Generated RAND: " + " ".join(f"0x{value:02X}" for value in milenageAuc.RAND))
+        milenageAuc.execute_OPc()
+        print("Generated RES: " + " ".join(f"0x{value:02X}" for value in milenageAuc.RES))
+        print("Generated CK: " + " ".join(f"0x{value:02X}" for value in milenageAuc.CK))
+        print("Generated IK: " + " ".join(f"0x{value:02X}" for value in milenageAuc.IK))
+        print("Generated AUTN: " + " ".join(f"0x{value:02X}" for value in milenageAuc.AUTN))
 
-            frame = create_uart_frame(0x05, bytes.fromhex(rand_hex + " " + autn_hex))
-            received_bytes = serial_communicator.send_and_receive(frame, 48)
-            command, data = parse_uart_frame(received_bytes)
+        rand_hex = " ".join(f"{value:02x}" for value in milenageAuc.RAND)
+        autn_hex = " ".join(f"{value:02x}" for value in milenageAuc.AUTN)
+        frame = create_uart_frame(0x05, bytes.fromhex(rand_hex + " " + autn_hex))
+        received_bytes = serial_communicator.send_and_receive(frame, 48)
+        command, data = parse_uart_frame(received_bytes)
 
-            if command == 5:
-                print("Authentication successful")
-                print("Generated RES: " + " ".join(f"0x{value:02X}" for value in data[0:8]))
-                print("Generated CK: " + " ".join(f"0x{value:02X}" for value in data[8:24]))
-                print("Generated IK: " + " ".join(f"0x{value:02X}" for value in data[24:40]))
+        if command == 5:
+            print("Authentication successful")
+            print("Generated RES: " + " ".join(f"0x{value:02X}" for value in data[0:8]))
+            print("Generated CK: " + " ".join(f"0x{value:02X}" for value in data[8:24]))
+            print("Generated IK: " + " ".join(f"0x{value:02X}" for value in data[24:40]))
 
-            elif command == 6:
-                print("Illegal access attempted")
+        elif command == 6:
+            print("Illegal access attempted")
 
-            elif command == 7:
-                result = milenageAuc.verifyAUTS(np.frombuffer(data[0:14], dtype=np.uint8))
-                if result:
-                    print("AUTS verification successful")
-                else:
-                    print("AUTS verification failed")
-
+        elif command == 7:
+            result = milenageAuc.verifyAUTS(np.frombuffer(data[0:14], dtype=np.uint8))
+            if result:
+                print("AUTS verification successful")
             else:
-                print("Uknown attempted")
+                print("AUTS verification failed")
 
-            print()
+        else:
+            print("Uknown attempted")
+
+        print()
+
+    serial_communicator.close_connection()

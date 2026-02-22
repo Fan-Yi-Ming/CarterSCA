@@ -245,14 +245,6 @@ class SerialCommunicator:
 
         return command, data
 
-    def __enter__(self):
-        """支持上下文管理器"""
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """支持上下文管理器，自动关闭串口"""
-        self.close_connection()
-
 
 if __name__ == '__main__':
     list_serial_ports()

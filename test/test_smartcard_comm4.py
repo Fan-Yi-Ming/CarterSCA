@@ -83,4 +83,6 @@ if __name__ == '__main__':
         else:
             print("Uknown attempted")
 
+        print()
+
     smartcard_communicator.close_connection()
