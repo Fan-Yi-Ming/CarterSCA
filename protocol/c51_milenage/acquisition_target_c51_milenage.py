@@ -18,7 +18,7 @@ if __name__ == '__main__':
     gatherer_sds804x_ref_channel_name = "C1"
     gatherer_sds804x_arm_delay = 0.1
     gatherer_sds804x_acquisition_timeout = 5.0
-    gatherer_sds804x_acquisition_times = 2000
+    gatherer_sds804x_acquisition_times = 10
     gatherer_sds804x_traceset_path = "D:\\traceset\\milenage.trs"
 
     # 异常处理配置
@@ -30,10 +30,10 @@ if __name__ == '__main__':
     gatherer_sds804x.arm(gatherer_sds804x_arm_delay)
     gatherer_sds804x.update_channels_parameters(timeout=gatherer_sds804x_acquisition_timeout)
 
-    # TraceSet元数据定义
+    # 写入TraceSet参数
     traceset_parameter_map = TraceSetParameterMap()
 
-    # 定义Trace参数
+    # 定义Trace元数据
     trace_parameter_definition_map = TraceParameterDefinitionMap()
     trace_parameter_definition_map["INPUT"] = TraceParameterDefinition(ParameterType.BYTE, 32, 0)
     trace_parameter_definition_map["OUTPUT"] = TraceParameterDefinition(ParameterType.BYTE, 41, 32)
@@ -56,13 +56,11 @@ if __name__ == '__main__':
     # 创建TRS文件
     gatherer_sds804x.open_traceset(traceset_path=gatherer_sds804x_traceset_path, headers=headers)
 
-    # 主采集循环
-    i = 0
+    # ============================ 开始采集 ============================
     successful_count = 0
     current_exception_count = 0
     exception_happened = False
 
-    # 更清晰的版本
     while True:
         # 检查成功条件
         if successful_count >= gatherer_sds804x_acquisition_times:
@@ -79,9 +77,9 @@ if __name__ == '__main__':
         try:
             # 目标设备重新初始化
             if exception_happened:
+                exception_happened = False
                 target_c51_milenage.close()
                 target_c51_milenage.init()
-                exception_happened = False
 
             # 示波器准备采集
             gatherer_sds804x.arm(delay=gatherer_sds804x_arm_delay)
@@ -104,20 +102,20 @@ if __name__ == '__main__':
             gatherer_sds804x.acquisition(trace_parameter_map=trace_parameter_map,
                                          timeout=gatherer_sds804x_acquisition_timeout)
 
-            # 输出采集耗时
-            elapsed_time = time.monotonic() - start_time
-            print(f"第 {i + 1} 次采集完成，耗时: {elapsed_time:.2f} 秒")
-
             # 成功计数
             successful_count += 1
-            i += 1
+
+            # 输出采集耗时
+            elapsed_time = time.monotonic() - start_time
+            print(f"第 {successful_count}/{gatherer_sds804x_acquisition_times} 次采集完成，"
+                  f"耗时: {elapsed_time:.2f} 秒")
 
         except Exception as e:
             # 异常处理
             current_exception_count += 1
             elapsed_time = time.monotonic() - start_time
 
-            print(f"第 {i + 1} 次采集发生异常，异常次数: {current_exception_count}/{max_exception_count}")
+            print(f"采集发生异常，异常次数: {current_exception_count}/{max_exception_count}")
             print(f"异常信息: {str(e)}")
             print(f"耗时: {elapsed_time:.2f} 秒")
 

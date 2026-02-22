@@ -28,9 +28,9 @@ if __name__ == '__main__':
 
     # 示波器初始化
     gatherer_sds804x = GathererSDS804X()
-    gatherer_sds804x.open_instrument(gatherer_sds804x_resource_name)  # 连接示波器
-    gatherer_sds804x.arm(gatherer_sds804x_arm_delay)  # 进入触发准备状态
-    gatherer_sds804x.update_channels_parameters(timeout=gatherer_sds804x_acquisition_timeout)  # 获取通道参数
+    gatherer_sds804x.open_instrument(gatherer_sds804x_resource_name)
+    gatherer_sds804x.arm(gatherer_sds804x_arm_delay)
+    gatherer_sds804x.update_channels_parameters(timeout=gatherer_sds804x_acquisition_timeout)
 
     # 写入TraceSet参数
     traceset_parameter_map = TraceSetParameterMap()  # 创建参数映射
@@ -47,15 +47,15 @@ if __name__ == '__main__':
     # 构建TRS文件头
     ref_channel_parameters = gatherer_sds804x.get_channel_parameters(gatherer_sds804x_ref_channel_name)
     headers = {
-        Header.TRS_VERSION: 2,  # TRS版本
-        Header.TITLE_SPACE: 255,  # 标题空间
-        Header.SAMPLE_CODING: SampleCoding.SHORT,  # 采样编码格式
-        Header.LABEL_X: "s",  # X轴标签(时间)
-        Header.SCALE_X: ref_channel_parameters["interval"],  # 时间间隔
-        Header.LABEL_Y: "v",  # Y轴标签(电压)
-        Header.SCALE_Y: ref_channel_parameters["vdiv"] / ref_channel_parameters["code"],  # 电压比例
-        Header.TRACE_SET_PARAMETERS: traceset_parameter_map,  # 参数映射
-        Header.TRACE_PARAMETER_DEFINITIONS: trace_parameter_definition_map  # 参数定义
+        Header.TRS_VERSION: 2,
+        Header.TITLE_SPACE: 255,
+        Header.SAMPLE_CODING: SampleCoding.SHORT,
+        Header.LABEL_X: "s",
+        Header.SCALE_X: ref_channel_parameters["interval"],
+        Header.LABEL_Y: "v",
+        Header.SCALE_Y: ref_channel_parameters["vdiv"] / ref_channel_parameters["code"],
+        Header.TRACE_SET_PARAMETERS: traceset_parameter_map,
+        Header.TRACE_PARAMETER_DEFINITIONS: trace_parameter_definition_map
     }
     print(f"TRS文件头设置完成，参考通道: {gatherer_sds804x_ref_channel_name}")
 
@@ -83,9 +83,9 @@ if __name__ == '__main__':
         try:
             # 目标设备重新初始化
             if exception_happened:
+                exception_happened = False
                 target_c51_aes128.close()
                 target_c51_aes128.init(bytes.fromhex(target_c51_aes128_key_hex))
-                exception_happened = False
 
             # 示波器准备采集
             gatherer_sds804x.arm(delay=gatherer_sds804x_arm_delay)

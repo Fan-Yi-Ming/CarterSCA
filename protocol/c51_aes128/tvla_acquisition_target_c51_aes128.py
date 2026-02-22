@@ -13,15 +13,14 @@ if __name__ == '__main__':
     target_c51_aes128_direction = 0  # 0:加密 1:解密
     target_c51_aes128_key_hex = "2B 7E 15 16 28 AE D2 A6 AB F7 15 88 09 CF 4F 3C"
     target_c51_aes128 = TargetC51Aes128(port="COM3", baudrate=115200, timeout=1.0)
-    target_c51_aes128.init(bytes.fromhex(target_c51_aes128_key_hex))  # 初始化AES128设备
+    target_c51_aes128.init(bytes.fromhex(target_c51_aes128_key_hex))
 
     # 示波器配置参数
     gatherer_sds804x_resource_name = "TCPIP0::169.254.114.206::inst0::INSTR"  # 示波器地址
     gatherer_sds804x_ref_channel_name = "C1"
     gatherer_sds804x_arm_delay = 0.1
     gatherer_sds804x_acquisition_timeout = 5.0
-    gatherer_sds804x_tvla_fix_times = 10
-    gatherer_sds804x_tvla_rnd_times = 10
+    gatherer_sds804x_acquisition_times = 10
     gatherer_sds804x_traceset_path = "D:\\traceset\\aes128_en_tvla.trs"
 
     # 异常处理配置
@@ -75,7 +74,7 @@ if __name__ == '__main__':
 
     while True:
         # 检查成功条件
-        if successful_count >= gatherer_sds804x_tvla_fix_times:
+        if successful_count >= gatherer_sds804x_acquisition_times:
             print("已达到目标采集次数")
             break
 
@@ -89,9 +88,9 @@ if __name__ == '__main__':
         try:
             # 目标设备重新初始化
             if exception_happened:
+                exception_happened = False
                 target_c51_aes128.close()
                 target_c51_aes128.init(bytes.fromhex(target_c51_aes128_key_hex))
-                exception_happened = False
 
             # 示波器准备采集
             gatherer_sds804x.arm(delay=gatherer_sds804x_arm_delay)
@@ -115,7 +114,7 @@ if __name__ == '__main__':
 
             # 输出采集耗时
             elapsed_time = time.monotonic() - start_time
-            print(f"固定组第 {successful_count}/{gatherer_sds804x_tvla_fix_times} 次采集完成，"
+            print(f"固定组第 {successful_count}/{gatherer_sds804x_acquisition_times} 次采集完成，"
                   f"耗时: {elapsed_time:.2f} 秒")
 
         except Exception as e:
@@ -140,7 +139,7 @@ if __name__ == '__main__':
 
     while True:
         # 检查成功条件
-        if successful_count >= gatherer_sds804x_tvla_rnd_times:
+        if successful_count >= gatherer_sds804x_acquisition_times:
             print("已达到目标采集次数")
             break
 
@@ -154,9 +153,9 @@ if __name__ == '__main__':
         try:
             # 目标设备重新初始化
             if exception_happened:
+                exception_happened = False
                 target_c51_aes128.close()
                 target_c51_aes128.init(bytes.fromhex(target_c51_aes128_key_hex))
-                exception_happened = False
 
             # 示波器准备采集
             gatherer_sds804x.arm(delay=gatherer_sds804x_arm_delay)
@@ -184,7 +183,7 @@ if __name__ == '__main__':
 
             # 输出采集耗时
             elapsed_time = time.monotonic() - start_time
-            print(f"随机组第 {successful_count}/{gatherer_sds804x_tvla_rnd_times} 次采集完成，"
+            print(f"随机组第 {successful_count}/{gatherer_sds804x_acquisition_times} 次采集完成，"
                   f"耗时: {elapsed_time:.2f} 秒")
 
         except Exception as e:
