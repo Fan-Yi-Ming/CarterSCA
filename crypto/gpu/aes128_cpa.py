@@ -302,16 +302,16 @@ if __name__ == '__main__':
     aes128_cpa.process_number = 8
 
     # 第一轮攻击配置（加密）
-    aes128_cpa.traceset_path = "D:\\traceset\\c51_aes128\\aes128_en.trs"
+    aes128_cpa.traceset_path = "D:\\traceset\\c51_aes128\\aes128_en+LowPass(204620)+StaticAlign(205153).trs"
     aes128_cpa.traceset2_switch = False
-    aes128_cpa.sample_first_pos = 70000
-    aes128_cpa.sample_number = 500000
+    aes128_cpa.sample_first_pos = 0
+    aes128_cpa.sample_number = 1000000
     aes128_cpa.crypto_direction = 0
     aes128_cpa.sbox_index_arr = index_str_to_range("0-15")
     aes128_cpa.analyze()
 
     # 第二轮攻击配置（解密）
-    aes128_cpa.traceset_path = "D:\\traceset\\c51_aes128\\aes128_de.trs"
+    aes128_cpa.traceset_path = "D:\\traceset\\c51_aes128\\aes128_de+LowPass(201013)+StaticAlign(201843).trs"
     aes128_cpa.traceset2_switch = False
     aes128_cpa.sample_first_pos = 0
     aes128_cpa.sample_number = 500000

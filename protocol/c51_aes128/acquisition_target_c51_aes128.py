@@ -10,7 +10,7 @@ from tools.sca import generate_random_hex_string
 
 if __name__ == '__main__':
     # 目标设备初始化
-    target_c51_aes128_direction = 1  # 0:加密 1:解密
+    target_c51_aes128_direction = 0  # 0:加密 1:解密
     target_c51_aes128_key_hex = "2B 7E 15 16 28 AE D2 A6 AB F7 15 88 09 CF 4F 3C"
     target_c51_aes128 = TargetC51Aes128(port="COM3", baudrate=115200, timeout=1.0)
     target_c51_aes128.init(bytes.fromhex(target_c51_aes128_key_hex))  # 初始化AES128设备
@@ -20,8 +20,8 @@ if __name__ == '__main__':
     gatherer_sds804x_ref_channel_name = "C1"
     gatherer_sds804x_arm_delay = 0.1
     gatherer_sds804x_acquisition_timeout = 5.0
-    gatherer_sds804x_acquisition_times = 20
-    gatherer_sds804x_traceset_path = "D:\\traceset\\aes128_de.trs"
+    gatherer_sds804x_acquisition_times = 10
+    gatherer_sds804x_traceset_path = "D:\\traceset\\aes128_en.trs"
 
     # 异常处理配置
     max_exception_count = 10  # 允许的最大异常次数
@@ -32,14 +32,14 @@ if __name__ == '__main__':
     gatherer_sds804x.arm(gatherer_sds804x_arm_delay)  # 进入触发准备状态
     gatherer_sds804x.update_channels_parameters(timeout=gatherer_sds804x_acquisition_timeout)  # 获取通道参数
 
-    # TraceSet元数据定义
+    # 写入TraceSet参数
     traceset_parameter_map = TraceSetParameterMap()  # 创建参数映射
     direction_arr = bytes([target_c51_aes128_direction])
     key_arr = bytes.fromhex(target_c51_aes128_key_hex)
     traceset_parameter_map["DIRECTION"] = tp.ByteArrayParameter(direction_arr)
     traceset_parameter_map["KEY"] = tp.ByteArrayParameter(key_arr)
 
-    # 定义Trace参数
+    # 定义Trace元数据
     trace_parameter_definition_map = TraceParameterDefinitionMap()
     trace_parameter_definition_map["INPUT"] = TraceParameterDefinition(ParameterType.BYTE, 16, 0)  # 16字节输入数据
     trace_parameter_definition_map["OUTPUT"] = TraceParameterDefinition(ParameterType.BYTE, 16, 16)  # 16字节输出数据
@@ -62,13 +62,11 @@ if __name__ == '__main__':
     # 创建TRS文件
     gatherer_sds804x.open_traceset(traceset_path=gatherer_sds804x_traceset_path, headers=headers)
 
-    # 主采集循环
-    i = 0
+    # ============================ 开始采集 ============================
     successful_count = 0
     current_exception_count = 0
     exception_happened = False
 
-    # 更清晰的版本
     while True:
         # 检查成功条件
         if successful_count >= gatherer_sds804x_acquisition_times:
@@ -109,20 +107,20 @@ if __name__ == '__main__':
             gatherer_sds804x.acquisition(trace_parameter_map=trace_parameter_map,
                                          timeout=gatherer_sds804x_acquisition_timeout)
 
-            # 输出采集耗时
-            elapsed_time = time.monotonic() - start_time
-            print(f"第 {i + 1} 次采集完成，耗时: {elapsed_time:.2f} 秒")
-
             # 成功计数
             successful_count += 1
-            i += 1
+
+            # 输出采集耗时
+            elapsed_time = time.monotonic() - start_time
+            print(f"第 {successful_count}/{gatherer_sds804x_acquisition_times} 次采集完成，"
+                  f"耗时: {elapsed_time:.2f} 秒")
 
         except Exception as e:
             # 异常处理
             current_exception_count += 1
             elapsed_time = time.monotonic() - start_time
 
-            print(f"第 {i + 1} 次采集发生异常，异常次数: {current_exception_count}/{max_exception_count}")
+            print(f"采集发生异常，异常次数: {current_exception_count}/{max_exception_count}")
             print(f"异常信息: {str(e)}")
             print(f"耗时: {elapsed_time:.2f} 秒")
 

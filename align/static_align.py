@@ -184,11 +184,11 @@ if __name__ == '__main__':
     static_align.num_processes = 16
 
     static_align.ref_trace_index = 0
-    static_align.pattern_first_sample_pos = 148468
-    static_align.pattern_sample_number = 27000
-    static_align.shift_max = 2
+    static_align.pattern_first_sample_pos = 426546
+    static_align.pattern_sample_number = 5000
+    static_align.shift_max = 500
     static_align.step_size = 1
     static_align.threshold = 0.8
-    static_align.traceset_path = "D:\\traceset\\c51_aes128\\aes128_en.trs"
+    static_align.traceset_path = "D:\\traceset\\"
 
     static_align.align()
