@@ -31,8 +31,7 @@ def list_serial_ports():
         print(f"{port.device:<10} {description:<25} {hwid}")
 
     print("-" * 60)
-    print(f"总共找到 {len(available_ports)} 个串口设备")
-    print("")
+    print(f"共找到 {len(available_ports)} 个串口设备")
 
     return available_ports
 
@@ -249,14 +248,12 @@ class SerialCommunicator:
 if __name__ == '__main__':
     list_serial_ports()
 
-    # 使用上下文管理器，确保串口正确关闭
-    with SerialCommunicator() as serial_communicator:
-        # 设置超时时间为1秒
-        serial_communicator.open_connection(port="COM3", baudrate=115200, timeout=1.0)
+    serial_communicator = SerialCommunicator()
+    serial_communicator.open_connection(port="COM3", baudrate=115200, timeout=1.0)
 
-        # 示例1：使用原始的send_and_receive方法
-        hex_payload = ("A5 5A 00 00 10 "
-                       "00 11 22 33 44 55 66 77 88 99 AA BB CC DD EE FF "
-                       "26 39 FF")
-        payload = bytes.fromhex(hex_payload)
-        serial_communicator.send_and_receive(payload, len(payload))
+    # 示例1：使用原始的send_and_receive方法
+    payload_hex = ("A5 5A 00 00 10 "
+                   "00 11 22 33 44 55 66 77 88 99 AA BB CC DD EE FF "
+                   "26 39 FF")
+    payload = bytes.fromhex(payload_hex)
+    serial_communicator.send_and_receive(payload, len(payload))

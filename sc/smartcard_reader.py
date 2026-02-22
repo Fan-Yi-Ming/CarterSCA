@@ -5,7 +5,14 @@ import time
 
 def list_smartcard_readers():
     reader_list = [str(reader) for reader in readers()]
-    print("找到读卡器:", reader_list)
+
+    if reader_list:
+        print(f"找到 {len(reader_list)} 个智能卡读卡器:")
+        for i, reader in enumerate(reader_list, 1):
+            print(f"{i}. {reader}")
+    else:
+        print("未找到读卡器")
+
     return reader_list
 
 
