@@ -121,7 +121,7 @@ if __name__ == '__main__':
     low_pass = LowPass()
     low_pass.num_processes = 16
 
-    low_pass.weight = 40.0
-    low_pass.traceset_path = "D:\\traceset\\ScopeAcquisition（100）.trs"
+    low_pass.weight = 20.0
+    low_pass.traceset_path = "D:\\traceset\\aes128_en_tvla.trs"
 
     low_pass.low_pass()

@@ -20,7 +20,7 @@ if __name__ == '__main__':
     gatherer_sds804x_ref_channel_name = "C1"
     gatherer_sds804x_arm_delay = 0.1
     gatherer_sds804x_acquisition_timeout = 5.0
-    gatherer_sds804x_acquisition_times = 10
+    gatherer_sds804x_acquisition_times = 1000
     gatherer_sds804x_traceset_path = "D:\\traceset\\aes128_en_tvla.trs"
 
     # 异常处理配置

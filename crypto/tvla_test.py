@@ -1,4 +1,5 @@
 import os
+import time
 from datetime import datetime
 from typing import Tuple
 
@@ -10,30 +11,32 @@ from multiprocessing import Pool, cpu_count
 import scipy.stats as stats
 
 
-def process_single_trace(args: Tuple) -> Tuple[int, int]:
-    """处理单条迹线，返回迹线索引和分组值"""
-    (traceset_path, trace_index) = args
+def process_single_trace(traceset_path, trace_index) -> Tuple[int]:
     traceset = trsfile.open(traceset_path, 'r')
     trace = traceset[trace_index]
+    traceset.close()
+
     group_value = trace.parameters["TVLA_GROUP"].value[0]
     if group_value not in [0x00, 0x01]:
         raise ValueError("TVLA_GROUP value must be 0 or 1.")
-    return trace_index, group_value
+
+    return group_value
 
 
-def process_single_trace2(args: Tuple) -> Tuple[int, int, np.array]:
-    """处理单条迹线，返回迹线索引、分组值和样本数据"""
-    (traceset_path, trace_index, sample_first_pos, sample_number) = args
+def process_single_trace2(traceset_path, trace_index, sample_first_pos, sample_number) -> Tuple[int, np.array]:
     traceset = trsfile.open(traceset_path, 'r')
     trace = traceset[trace_index]
+    traceset.close()
+
     group_value = trace.parameters["TVLA_GROUP"].value[0]
     if group_value not in [0x00, 0x01]:
         raise ValueError("TVLA_GROUP value must be 0 or 1.")
-    sample_arr = np.float32(trace[sample_first_pos:sample_first_pos + sample_number])
-    return trace_index, group_value, sample_arr
+    sample_arr = np.array(trace[sample_first_pos:sample_first_pos + sample_number], dtype=np.float32)
+
+    return group_value, sample_arr
 
 
-def perform_ttest_vectorized(fix_sample_arr_2d, rnd_sample_arr_2d):
+def t_test(fix_sample_arr_2d, rnd_sample_arr_2d):
     """执行向量化的t检验，返回t值和p值"""
     fix_mean = np.mean(fix_sample_arr_2d, axis=0)
     rnd_mean = np.mean(rnd_sample_arr_2d, axis=0)
@@ -69,52 +72,41 @@ def perform_ttest_vectorized(fix_sample_arr_2d, rnd_sample_arr_2d):
 
 
 class TVLATest:
-    """TVLA测试类，用于执行基于t检验的泄露检测"""
 
     def __init__(self):
-        # 进程配置
-        self.num_processes = cpu_count()
+        self.process_number = cpu_count()
 
-        # 能量迹参数
-        self.trace_number = 0
-        self.sample_first_pos = 0
-        self.sample_number = 0
+        self.trace_number: int = 0
+        self.sample_first_pos: int = 0
+        self.sample_number: int = 0
 
-        # TVLA参数
-        self.t_value_threshold = 4.5
+        self.t_value_threshold: float = 4.5
 
-        # 能量迹文件
-        self.traceset = None
-        self.traceset_path = ""
-        self.traceset2 = None
-
-        # 分析数据
-        self.fix_trace_number = 0
-        self.rnd_trace_number = 0
+        self.fix_trace_number: int = 0
+        self.rnd_trace_number: int = 0
         self.fix_sample_arr_2d = None
         self.rnd_sample_arr_2d = None
         self.t_values = None
         self.p_values = None
 
+        self.traceset = None
+        self.traceset_path: str = ""
+        self.traceset2 = None
+
     def init_process(self):
-        """初始化分析过程"""
         self.open_traceset()
         self.open_traceset2()
 
-        # 初始化样本点数组
         self.fix_sample_arr_2d = np.zeros((self.fix_trace_number, self.sample_number), dtype=np.float32)
         self.rnd_sample_arr_2d = np.zeros((self.rnd_trace_number, self.sample_number), dtype=np.float32)
-
         self.t_values = np.zeros(self.sample_number, dtype=np.float32)
         self.p_values = np.zeros(self.sample_number, dtype=np.float32)
 
     def open_traceset(self):
-        """打开原始能量迹TRS文件并初始化参数"""
         self.traceset = trsfile.open(self.traceset_path, 'r')
         self.trace_number = self.traceset.get_headers()[Header.NUMBER_TRACES]
         sample_number_per_trace = self.traceset.get_headers()[Header.NUMBER_SAMPLES]
 
-        # 自动调整样本点范围
         if self.sample_first_pos < 0:
             self.sample_first_pos = 0
             print(f"自动调整样本点起始位置为: 0")
@@ -123,48 +115,40 @@ class TVLATest:
             self.sample_number = sample_number_per_trace - self.sample_first_pos
             print(f"自动调整样本点数量为: {self.sample_number}")
 
-        start_time = datetime.now()
-        print(f"开始分别统计固定组组数和随机组组数，时间: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
-
         self.fix_trace_number = 0
         self.rnd_trace_number = 0
 
-        try:
-            # 分批统计分组数量
-            num_batches = (self.trace_number + self.num_processes - 1) // self.num_processes
-            print(f"开始加载 {self.trace_number} 条迹线，使用 {self.num_processes} 个进程并行处理，"
-                  f"总共分为 {num_batches} 批进行加载")
+        start_time = time.monotonic()
+        print(f"开始分别统计固定组组数和随机组组数")
 
-            with Pool(processes=self.num_processes) as pool:
-                for batch_idx in range(num_batches):
-                    print(f"开始加载第 {batch_idx + 1:>3}/{num_batches} 批...")
+        batch_size = 100
+        batch_number = (self.trace_number + batch_size - 1) // batch_size
 
-                    start_idx = batch_idx * self.num_processes
-                    end_idx = min((batch_idx + 1) * self.num_processes, self.trace_number)
-                    current_batch_size = end_idx - start_idx
+        # 多进程并行加载
+        with Pool(processes=self.process_number) as pool:
+            for batch_idx in range(batch_number):
+                start_idx = batch_idx * batch_size
+                end_idx = min((batch_idx + 1) * batch_size, self.trace_number)
+                current_batch_size = end_idx - start_idx
+                print(f"批{batch_idx + 1}/{batch_number} ({current_batch_size}条)")
 
-                    batch_tasks = []
-                    for i in range(current_batch_size):
-                        trace_index = start_idx + i
-                        batch_tasks.append((self.traceset_path, trace_index))
+                # 准备任务参数
+                batch_tasks = [(self.traceset_path, start_idx + i)
+                               for i in range(current_batch_size)]
 
-                    batch_results = pool.map(process_single_trace, batch_tasks)
-                    batch_results.sort(key=lambda x: x[0])
+                # 并行处理
+                batch_results = pool.starmap(process_single_trace, batch_tasks)
 
-                    for trace_index, group_value in batch_results:
-                        if group_value == 0x00:
-                            self.fix_trace_number += 1
-                        if group_value == 0x01:
-                            self.rnd_trace_number += 1
+                # 写入结果
+                for group_value in batch_results:
+                    if group_value == 0x00:
+                        self.fix_trace_number += 1
+                    if group_value == 0x01:
+                        self.rnd_trace_number += 1
 
-            print(f"所有批加载完成！")
-
-        except Exception as e:
-            print(f"加载过程中发生错误: {e}")
-            raise
-
-        total_time = (datetime.now() - start_time).total_seconds()
-        print(f"完成固定组组数和随机组组数统计！总用时 {total_time:.3f} 秒")
+        elapsed_time = time.monotonic() - start_time
+        print(f"完成固定组组数和随机组组数统计 用时 {elapsed_time:.3f} 秒")
+        print(f"固定组 {self.fix_trace_number} 随机组 {self.rnd_trace_number}")
 
     def open_traceset2(self):
         """创建并打开用于存储TVLA结果的TRS文件"""
@@ -183,16 +167,12 @@ class TVLATest:
             Header.TRACE_PARAMETER_DEFINITIONS: trace_parameter_definition_map
         }
 
-        # 构建新文件名
         base_name = os.path.splitext(os.path.basename(self.traceset_path))[0]
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        timestamp = datetime.now().strftime("%H%M%S")
         new_base_name = f"{base_name}+TVLA({timestamp})"
-        traceset2_path = os.path.join(
-            os.path.dirname(self.traceset_path),
-            new_base_name + os.path.splitext(self.traceset_path)[1]
-        )
+        traceset2_path = os.path.join(os.path.dirname(self.traceset_path),
+                                      new_base_name + os.path.splitext(self.traceset_path)[1])
 
-        # 创建新的TRS文件
         self.traceset2 = trsfile.trs_open(
             path=traceset2_path,
             mode='w',
@@ -203,85 +183,66 @@ class TVLATest:
         )
 
     def close_traceset(self):
-        """关闭所有打开的能量迹文件"""
         if self.traceset:
             self.traceset.close()
+
+    def close_traceset2(self):
         if self.traceset2:
             self.traceset2.close()
 
-    def load_sample_data(self):
-        """加载样本数据"""
+    def load_samples(self):
         fix_indices = 0
         rnd_indices = 0
 
-        start_time = datetime.now()
-        print(f"开始分别加载固定组数据和随机组数据，时间: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        start_time = time.monotonic()
+        print(f"开始加载 {self.trace_number} 条迹线")
 
-        try:
-            # 分批处理参数
-            num_batches = (self.trace_number + self.num_processes - 1) // self.num_processes
-            print(f"开始加载 {self.trace_number} 条迹线，使用 {self.num_processes} 个进程并行处理，"
-                  f"总共分为 {num_batches} 批进行加载")
+        batch_size = 100
+        batch_number = (self.trace_number + batch_size - 1) // batch_size
 
-            # 多进程并行加载
-            with Pool(processes=self.num_processes) as pool:
-                for batch_idx in range(num_batches):
-                    print(f"开始加载第 {batch_idx + 1:>3}/{num_batches} 批...")
+        # 多进程并行加载
+        with Pool(processes=self.process_number) as pool:
+            for batch_idx in range(batch_number):
+                start_idx = batch_idx * batch_size
+                end_idx = min((batch_idx + 1) * batch_size, self.trace_number)
+                current_batch_size = end_idx - start_idx
+                print(f"批{batch_idx + 1}/{batch_number} ({current_batch_size}条)")
 
-                    # 计算当前批次范围
-                    start_idx = batch_idx * self.num_processes
-                    end_idx = min((batch_idx + 1) * self.num_processes, self.trace_number)
-                    current_batch_size = end_idx - start_idx
+                # 准备任务参数
+                batch_tasks = [(self.traceset_path, start_idx + i,
+                                self.sample_first_pos, self.sample_number)
+                               for i in range(current_batch_size)]
 
-                    # 准备任务参数
-                    batch_tasks = []
-                    for i in range(current_batch_size):
-                        trace_index = start_idx + i
-                        batch_tasks.append((
-                            self.traceset_path,
-                            trace_index,
-                            self.sample_first_pos,
-                            self.sample_number,
-                        ))
+                # 并行处理
+                batch_results = pool.starmap(process_single_trace2, batch_tasks)
 
-                    # 并行执行
-                    batch_results = pool.map(process_single_trace2, batch_tasks)
-                    batch_results.sort(key=lambda x: x[0])
+                # 写入结果
+                for group_value, sample_arr in batch_results:
+                    if group_value == 0x00:
+                        self.fix_sample_arr_2d[fix_indices] = sample_arr
+                        fix_indices += 1
+                    if group_value == 0x01:
+                        self.rnd_sample_arr_2d[rnd_indices] = sample_arr
+                        rnd_indices += 1
 
-                    # 处理结果
-                    for trace_index, group_value, sample_arr, in batch_results:
-                        if group_value == 0x00:
-                            self.fix_sample_arr_2d[fix_indices] = sample_arr
-                            fix_indices += 1
-                        if group_value == 0x01:
-                            self.rnd_sample_arr_2d[rnd_indices] = sample_arr
-                            rnd_indices += 1
-
-            print(f"所有批加载完成！")
-
-        except Exception as e:
-            print(f"加载过程中发生错误: {e}")
-            raise
-
-        total_time = (datetime.now() - start_time).total_seconds()
-        print(f"完成加载固定组数据和随机组数据加载！总用时 {total_time:.3f} 秒")
+        elapsed_time = time.monotonic() - start_time
+        print(f"所有迹线加载完成 用时 {elapsed_time:.3f}秒")
 
     def calculate_t_test(self):
-        """计算t值和p值"""
         self.init_process()
-        self.load_sample_data()
+        self.load_samples()
 
-        print("开始计算T_Values P_Values...")
-        start_time = datetime.now()
+        start_time = time.monotonic()
+        print("开始计算T_Values P_Values")
 
-        use_trace_number = min(self.fix_trace_number, self.rnd_trace_number)
-        print(f"使用 {use_trace_number} 条迹线进行T-test")
-        self.t_values, self.p_values = perform_ttest_vectorized(
-            self.fix_sample_arr_2d[:use_trace_number],
-            self.rnd_sample_arr_2d[:use_trace_number]
+        useful_trace_number = min(self.fix_trace_number, self.rnd_trace_number)
+        print(f"使用 {useful_trace_number} 条迹线进行T-test")
+        self.t_values, self.p_values = t_test(
+            self.fix_sample_arr_2d[:useful_trace_number],
+            self.rnd_sample_arr_2d[:useful_trace_number]
         )
 
-        # 保存结果到TRS文件
+        # T_Values
         trace = Trace(
             sample_coding=SampleCoding.FLOAT,
             samples=self.t_values,
@@ -290,24 +251,25 @@ class TVLATest:
         )
         self.traceset2.append(trace)
 
-        # 保存正阈值
-        trace_positive = Trace(
+        # 正阈值
+        trace = Trace(
             sample_coding=SampleCoding.FLOAT,
             samples=np.full(self.sample_number, self.t_value_threshold),
             parameters=TraceParameterMap(),
             title="Positive_Threshold"
         )
-        self.traceset2.append(trace_positive)
+        self.traceset2.append(trace)
 
-        # 保存负阈值
-        trace_negative = Trace(
+        # 负阈值
+        trace = Trace(
             sample_coding=SampleCoding.FLOAT,
             samples=np.full(self.sample_number, -self.t_value_threshold),
             parameters=TraceParameterMap(),
             title="Negative_Threshold"
         )
-        self.traceset2.append(trace_negative)
+        self.traceset2.append(trace)
 
+        # P_Values
         trace = Trace(
             sample_coding=SampleCoding.FLOAT,
             samples=self.p_values,
@@ -316,24 +278,20 @@ class TVLATest:
         )
         self.traceset2.append(trace)
 
-        end_time = datetime.now()
-        elapsed_time = end_time - start_time
-        print(f"T_Values P_Values计算完成，耗时: {elapsed_time.total_seconds():.2f} 秒")
+        elapsed_time = time.monotonic() - start_time
+        print(f"T_Values P_Values计算完成 用时 {elapsed_time:.3f} 秒")
 
         self.close_traceset()
+        self.close_traceset2()
 
 
 if __name__ == '__main__':
-    # ==================== 使用示例 ====================
     tvla_test = TVLATest()
+    tvla_test.process_number = 16
 
-    tvla_test.num_processes = 16
-
-    tvla_test.sample_first_pos = 0
-    tvla_test.sample_number = 200000
+    tvla_test.sample_first_pos = 380825
+    tvla_test.sample_number = 120000
     tvla_test.t_value_threshold = 4.5
+    tvla_test.traceset_path = "D:\\traceset\\aes128_en_tvla+LowPass(155914)+StaticAlign(160423).trs"
 
-    tvla_test.traceset_path = "..\\traceset\\tvla_test_usim158+LowPass(20251125120754)+StaticAlign(20251125121346)+StaticAlign(20251125123124).trs"
-
-    # 执行TVLA测试
     tvla_test.calculate_t_test()
