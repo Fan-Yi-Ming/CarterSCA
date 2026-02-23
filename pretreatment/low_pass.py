@@ -1,10 +1,11 @@
 import os
 import copy
-from multiprocessing import Pool, cpu_count
 import numpy as np
-import trsfile
-from datetime import datetime
 import trsfile.traceparameter as tp
+import trsfile
+import time
+from datetime import datetime
+from multiprocessing import Pool, cpu_count
 from trsfile import Header, TracePadding, SampleCoding, Trace
 
 
@@ -88,7 +89,7 @@ class LowPass:
     def low_pass(self):
         self.open_traceset()
         trace_number = self.traceset.get_headers()[Header.NUMBER_TRACES]
-        start_time = datetime.now()
+        start_time = time.perf_counter()
         print(f"开始低通滤波 {trace_number} 条迹线")
 
         batch_size = self.num_processes
@@ -112,8 +113,8 @@ class LowPass:
                 for low_pass_trace in batch_results:
                     self.traceset2.append(low_pass_trace)
 
-        total_time = (datetime.now() - start_time).total_seconds()
-        print(f"低通滤波完成 用时:{total_time:.3f}秒")
+        elapsed_time = time.perf_counter() - start_time
+        print(f"低通滤波完成 用时:{elapsed_time:.3f}秒")
         self.close_traceset()
 
 

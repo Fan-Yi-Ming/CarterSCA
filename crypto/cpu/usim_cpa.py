@@ -234,7 +234,7 @@ class UsimCPA:
                 print(f"删除损坏文件失败: {delete_error}")
 
     def load_samples_and_creat_intermediates(self):
-        start_time = time.monotonic()
+        start_time = time.perf_counter()
         print(f"开始加载 {self.trace_number} 条迹线")
 
         batch_size = 100
@@ -264,7 +264,7 @@ class UsimCPA:
                     self.sample_arr_2d[trace_index] = sample_arr
                     self.data_arr_3d[:, trace_index, :] = data_arr_2d
 
-        elapsed_time = time.monotonic() - start_time
+        elapsed_time = time.perf_counter() - start_time
         print(f"所有迹线加载完成 用时 {elapsed_time:.3f} 秒")
 
     def analyze(self):
@@ -273,7 +273,7 @@ class UsimCPA:
         self.load_samples_and_creat_intermediates()
 
         print(f"开始分析Sbox")
-        start_time = time.monotonic()
+        start_time = time.perf_counter()
         for sbox_index in self.sbox_index_arr:
             correlation_arr_2d = analyze_process_cpa_cpu(self.data_arr_3d[sbox_index], self.sample_arr_2d)
             (self.sbox_key_arr_3d[self.attack_round_index][sbox_index],
@@ -291,7 +291,7 @@ class UsimCPA:
                         title=f"Sbox{sbox_index}-KeyGuess_0x{i:02X}")
                     self.traceset2.append(trace)
             print(f"Sbox{sbox_index} 分析完成")
-        elapsed_time = time.monotonic() - start_time
+        elapsed_time = time.perf_counter() - start_time
         print(f"所有Sbox分析完成 用时 {elapsed_time:.3f} 秒")
 
         self.finish_process()

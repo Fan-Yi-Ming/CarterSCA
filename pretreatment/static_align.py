@@ -1,11 +1,12 @@
 import copy
 import os
-from multiprocessing import Pool, cpu_count
-from typing import Tuple, Optional
 import numpy as np
 import trsfile
-from trsfile import Header, TracePadding, Trace
+import time
 from datetime import datetime
+from multiprocessing import Pool, cpu_count
+from typing import Tuple, Optional
+from trsfile import Header, TracePadding, Trace
 
 
 def compute_correlation(x_arr: np.ndarray, y_arr: np.ndarray) -> float:
@@ -111,7 +112,7 @@ class StaticAlign:
         if not (0 <= self.ref_trace_index < trace_number):
             raise ValueError(f"参考迹线索引 {self.ref_trace_index} 超出范围 [0, {trace_number - 1}]")
 
-        start_time = datetime.now()
+        start_time = time.perf_counter()
         print(f"开始静态对齐 {trace_number} 条迹线")
 
         # 防止模板越界
@@ -174,8 +175,8 @@ class StaticAlign:
 
         print(f"最终包含: {total_included} 条迹线")
         print(f"最终排除: {total_excluded} 条迹线")
-        total_time = (datetime.now() - start_time).total_seconds()
-        print(f"静态对齐完成 用时:{total_time:.3f}秒")
+        elapsed_time = time.perf_counter() - start_time
+        print(f"静态对齐完成 用时:{elapsed_time:.3f}秒")
         self.close_traceset()
 
 

@@ -117,7 +117,7 @@ class TVLATest:
         self.fix_trace_number = 0
         self.rnd_trace_number = 0
 
-        start_time = time.monotonic()
+        start_time = time.perf_counter()
         print(f"开始分别统计固定组组数和随机组组数")
 
         batch_size = 100
@@ -145,7 +145,7 @@ class TVLATest:
                     if group_value == 0x01:
                         self.rnd_trace_number += 1
 
-        elapsed_time = time.monotonic() - start_time
+        elapsed_time = time.perf_counter() - start_time
         print(f"完成统计 固定组组数 {self.fix_trace_number} 随机组组数 {self.rnd_trace_number} "
               f"用时 {elapsed_time:.3f} 秒")
 
@@ -193,7 +193,7 @@ class TVLATest:
         fix_indices = 0
         rnd_indices = 0
 
-        start_time = time.monotonic()
+        start_time = time.perf_counter()
         print(f"开始加载 {self.trace_number} 条迹线")
 
         batch_size = 100
@@ -224,14 +224,14 @@ class TVLATest:
                         self.rnd_sample_arr_2d[rnd_indices] = sample_arr
                         rnd_indices += 1
 
-        elapsed_time = time.monotonic() - start_time
+        elapsed_time = time.perf_counter() - start_time
         print(f"所有迹线加载完成 用时 {elapsed_time:.3f}秒")
 
     def t_test(self):
         self.init_process()
         self.load_samples()
 
-        start_time = time.monotonic()
+        start_time = time.perf_counter()
         print("开始计算T_Values P_Values")
 
         useful_trace_number = min(self.fix_trace_number, self.rnd_trace_number)
@@ -277,7 +277,7 @@ class TVLATest:
         )
         self.traceset2.append(trace)
 
-        elapsed_time = time.monotonic() - start_time
+        elapsed_time = time.perf_counter() - start_time
         print(f"T_Values P_Values计算完成 用时 {elapsed_time:.3f} 秒")
 
         self.close_traceset()
@@ -291,6 +291,6 @@ if __name__ == '__main__':
     tvla_test.sample_first_pos = 380825
     tvla_test.sample_number = 120000
     tvla_test.t_value_threshold = 4.5
-    tvla_test.traceset_path = "D:\\traceset\\aes128_en_tvla+LowPass(155914)+StaticAlign(160423).trs"
+    tvla_test.traceset_path = "D:\\traceset\\tvla\\aes128_en_tvla+LowPass(155914)+StaticAlign(160423).trs"
 
     tvla_test.t_test()

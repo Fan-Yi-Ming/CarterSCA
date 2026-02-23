@@ -3,7 +3,6 @@ import trsfile.traceparameter as tp
 from trsfile import Header, SampleCoding
 from trsfile.parametermap import TraceSetParameterMap, TraceParameterDefinitionMap, TraceParameterMap
 from trsfile.traceparameter import ParameterType, TraceParameterDefinition
-
 from protocol.c51_milenage.target_c51_milenage import TargetC51Milenage
 from protocol.gatherer_sds804x import GathererSDS804X
 from tools.sca import generate_random_hex_string
@@ -72,7 +71,7 @@ if __name__ == '__main__':
             print(f"已达到最大异常次数 {max_exception_count}")
             break
 
-        start_time = time.monotonic()
+        start_time = time.perf_counter()
 
         try:
             # 目标设备重新初始化
@@ -106,14 +105,14 @@ if __name__ == '__main__':
             successful_count += 1
 
             # 输出采集耗时
-            elapsed_time = time.monotonic() - start_time
+            elapsed_time = time.perf_counter() - start_time
             print(f"第 {successful_count}/{gatherer_sds804x_acquisition_times} 次采集完成，"
                   f"用时 {elapsed_time:.3f} 秒")
 
         except Exception as e:
             # 异常处理
             current_exception_count += 1
-            elapsed_time = time.monotonic() - start_time
+            elapsed_time = time.perf_counter() - start_time
 
             print(f"采集发生异常，异常次数: {current_exception_count}/{max_exception_count}")
             print(f"异常信息: {str(e)}")

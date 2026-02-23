@@ -3,7 +3,6 @@ import math
 import struct
 import time
 import pyvisa
-
 from trsfile import trs_open
 from trsfile import Trace, SampleCoding, TracePadding
 from trsfile.parametermap import TraceParameterMap
@@ -70,17 +69,17 @@ class GathererSDS804X:
         Raises:
             GathererTimeout: 超过指定时间仍未完成采集
         """
-        start_time = time.monotonic()
+        start_time = time.perf_counter()
         while True:
             trigger_status = self.instrument.query(":TRIGger:STATus?").strip()
-            elapsed_time = time.monotonic() - start_time
+            elapsed_time = time.perf_counter() - start_time
 
             # 单次触发完成标志：示波器进入停止状态
             if trigger_status == "Stop":
                 break
             elif elapsed_time > timeout:
                 raise GathererTimeout(
-                    f"等待单次采集完成超时：已等待 {elapsed_time:.2f} 秒，超时时间为 {timeout} 秒")
+                    f"等待单次采集完成超时：已等待 {elapsed_time:.3f} 秒，超时时间为 {timeout} 秒")
             time.sleep(0.1)  # 查询间隔100ms
 
     def update_channels_parameters(self, timeout: float = 10.0):

@@ -33,9 +33,9 @@ class SmartcardCommunicator:
         hex_string = ' '.join(f'{byte:02X}' for byte in apdu)
         print(f"发送: {hex_string}")
 
-        start_time = time.time()
+        start_time = time.perf_counter()
         response, sw1, sw2 = self.connection.transmit(list(apdu))
-        elapsed_time = time.time() - start_time
+        elapsed_time = time.perf_counter() - start_time
 
         print(f"响应: {sw1:02X} {sw2:02X}")
         if response:
