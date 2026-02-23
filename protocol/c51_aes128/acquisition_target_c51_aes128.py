@@ -12,10 +12,10 @@ if __name__ == '__main__':
     target_c51_aes128_direction = 0  # 0:加密 1:解密
     target_c51_aes128_key_hex = "2B 7E 15 16 28 AE D2 A6 AB F7 15 88 09 CF 4F 3C"
     target_c51_aes128 = TargetC51Aes128(port="COM3", baudrate=115200, timeout=1.0)
-    target_c51_aes128.init(bytes.fromhex(target_c51_aes128_key_hex))  # 初始化AES128设备
+    target_c51_aes128.init(bytes.fromhex(target_c51_aes128_key_hex))
 
     # 示波器配置参数
-    gatherer_sds804x_resource_name = "TCPIP0::169.254.114.206::inst0::INSTR"  # 示波器IP地址
+    gatherer_sds804x_resource_name = "TCPIP0::169.254.114.206::inst0::INSTR"
     gatherer_sds804x_ref_channel_name = "C1"
     gatherer_sds804x_arm_delay = 0.1
     gatherer_sds804x_acquisition_timeout = 5.0
