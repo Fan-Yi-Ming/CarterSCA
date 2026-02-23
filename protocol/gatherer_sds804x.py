@@ -78,8 +78,7 @@ class GathererSDS804X:
             if trigger_status == "Stop":
                 break
             elif elapsed_time > timeout:
-                raise GathererTimeout(
-                    f"等待单次采集完成超时：已等待 {elapsed_time:.3f} 秒，超时时间为 {timeout} 秒")
+                raise GathererTimeout(f"等待单次采集完成超时：已等待 {elapsed_time:.3f} 秒，超时时间为 {timeout} 秒")
             time.sleep(0.1)  # 查询间隔100ms
 
     def update_channels_parameters(self, timeout: float = 10.0):

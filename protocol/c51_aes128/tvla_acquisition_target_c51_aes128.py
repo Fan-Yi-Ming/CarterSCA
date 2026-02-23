@@ -3,7 +3,6 @@ import trsfile.traceparameter as tp
 from trsfile import Header, SampleCoding
 from trsfile.parametermap import TraceSetParameterMap, TraceParameterDefinitionMap, TraceParameterMap
 from trsfile.traceparameter import ParameterType, TraceParameterDefinition
-
 from protocol.c51_aes128.target_c51_aes128 import TargetC51Aes128
 from protocol.gatherer_sds804x import GathererSDS804X
 from tools.sca import generate_random_hex_string
@@ -16,7 +15,7 @@ if __name__ == '__main__':
     target_c51_aes128.init(bytes.fromhex(target_c51_aes128_key_hex))
 
     # 示波器配置参数
-    gatherer_sds804x_resource_name = "TCPIP0::169.254.114.206::inst0::INSTR"  # 示波器地址
+    gatherer_sds804x_resource_name = "TCPIP0::169.254.114.206::inst0::INSTR"
     gatherer_sds804x_ref_channel_name = "C1"
     gatherer_sds804x_arm_delay = 0.1
     gatherer_sds804x_acquisition_timeout = 5.0
