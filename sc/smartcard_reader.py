@@ -47,3 +47,7 @@ class SmartcardCommunicator:
 
         print(f"耗时: {(elapsed_time) * 1000:.3f} ms")
         return response, sw1, sw2
+
+
+if __name__ == '__main__':
+    list_smartcard_readers()
