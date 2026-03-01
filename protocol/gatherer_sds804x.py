@@ -1,110 +1,82 @@
-import gc
 import math
 import struct
 import time
 import pyvisa
+from pyvisa import constants
 from trsfile import trs_open
 from trsfile import Trace, SampleCoding, TracePadding
 from trsfile.parametermap import TraceParameterMap
 
 
 class GathererError(Exception):
-    """
-    自定义异常类，用于处理采集过程中出现的错误。
-    """
-    pass
-
-
-class GathererTimeout(Exception):
-    """
-    自定义异常类，用于处理采集过程中的超时错误。
-    """
+    """采集过程错误"""
     pass
 
 
 class GathererSDS804X:
-    def __init__(self):
-        """
-        初始化 SDS804X 示波器采集器。
+    """SDS804X示波器控制器"""
 
-        创建示波器连接对象、通道参数存储和轨迹数据集。
-        """
-        self.instrument = None  # PyVISA仪器连接对象
-        self.channels_parameters = None  # 存储各通道波形参数
-        self.traceset = None  # 轨迹数据集对象
+    def __init__(self):
+        self.instrument = None  # VISA仪器对象
+        self.channels_parameters = None  # 通道参数快照
+        self.traceset = None  # TRS迹线文件对象
 
     def open_instrument(self, resource_name: str = ""):
-        """
-        建立与示波器的连接。
-
-        Args:
-            resource_name: VISA资源地址字符串，例如 'TCPIP::192.168.1.100::INSTR'
-        """
-        self.instrument = pyvisa.ResourceManager().open_resource(resource_name)
-        self.instrument.chunk_size = 20 * 1024 * 1024  # 设置数据传输块大小为20MB
-        self.de_arm()  # 初始化为停止触发状态
-        print(f"成功打开示波器: {resource_name}")
+        """打开示波器连接"""
+        rm = pyvisa.ResourceManager()
+        self.instrument = rm.open_resource(
+            resource_name=resource_name,
+            access_mode=constants.AccessModes.exclusive_lock,
+            open_timeout=5000,
+            timeout=10000,
+            chunk_size=1 * 1024 * 1024,
+        )
+        self.de_arm()
+        print(f"示波器已连接: {resource_name}")
 
     def close_instrument(self):
-        """
-        安全关闭示波器连接。
-
-        停止采集并释放VISA资源。
-        """
+        """关闭示波器连接"""
         if self.instrument:
-            resource_name = self.instrument.resource_name
-            self.de_arm()  # 停止触发
-            self.instrument.close()  # 关闭连接
-            print(f"成功关闭示波器: {resource_name}")
+            self.de_arm()
+            self.instrument.close()
+            print(f"示波器已断开")
 
-    def wait_acquisition_ready(self, timeout: float = 10.0):
-        """
-        等待单次触发采集完成且数据就绪。
-
-        在单次触发模式下，持续查询触发状态直到采集完成（进入Stop状态）。
-
-        Args:
-            timeout: 最大等待时间（秒）
-
-        Raises:
-            GathererTimeout: 超过指定时间仍未完成采集
-        """
+    def wait_for_trigger_stop(self, timeout: float = 10.0):
+        """等待触发停止"""
         start_time = time.perf_counter()
         while True:
             trigger_status = self.instrument.query(":TRIGger:STATus?").strip()
             elapsed_time = time.perf_counter() - start_time
 
-            # 单次触发完成标志：示波器进入停止状态
             if trigger_status == "Stop":
                 break
-            elif elapsed_time > timeout:
-                raise GathererTimeout(f"等待单次采集完成超时：已等待 {elapsed_time:.3f} 秒，超时时间为 {timeout} 秒")
-            time.sleep(0.1)  # 查询间隔100ms
+            if elapsed_time > timeout:
+                raise GathererError(f"触发超时")
+            time.sleep(0.01)
 
-    def update_channels_parameters(self, timeout: float = 10.0):
-        """
-        更新所有启用且可见通道的波形参数。
+    def get_enabled_channels(self):
+        """获取当前启用的通道列表"""
+        enabled_channels = []
+        for channel_index in range(1, 5):
+            channel_enabled = self.instrument.query(f":CHANnel{channel_index}:SWITch?").strip() == "ON"
+            channel_visible = self.instrument.query(f":CHANnel{channel_index}:VISible?").strip() == "ON"
+            if channel_enabled and channel_visible:
+                channel = f"C{channel_index}"
+                enabled_channels.append(channel)
+        return enabled_channels
 
-        通过强制触发方式获取最新的通道配置参数，包括垂直/水平设置、采样参数等。
+    def read_channel_preamble(self, channel: str):
+        """读取指定通道的前导码"""
+        self.instrument.write(f":WAVeform:SOURce {channel}")
+        self.instrument.write(":WAVeform:PREamble?")
+        received_bytes = self.instrument.read_raw()
+        preamble_bytes = received_bytes[received_bytes.find(b'#') + 11:]
+        return preamble_bytes
 
-        Args:
-            timeout: 采集完成等待超时时间（秒）
-
-        Raises:
-            GathererTimeout: 更新过程中超时
-        """
-        # 执行强制触发
-        self.instrument.write(":TRIGger:MODE FTRIG")  # 设置为强制触发模式
-
-        # 等待采集完成
-        self.wait_acquisition_ready(timeout=timeout)
-
-        # 初始化通道参数存储
-        self.channels_parameters = {}
-
-        # 波形前导码参数地址映射表
-        # 格式：参数名: [地址偏移, 数据类型]
-        param_addr_type = {
+    def parse_channel_preamble(self, preamble_bytes):
+        """解析通道前导数据，提取通道参数并进行必要的转换"""
+        # 参数格式定义：参数名 -> [偏移地址, 数据类型]
+        param_format = {
             "data_bytes": [0x3c, "i"],  # 数据字节数
             "point_num": [0x74, 'i'],  # 波形点数（模拟通道专用）
             "fp": [0x84, 'i'],  # 起始点位置
@@ -119,10 +91,10 @@ class GathererSDS804X:
             "probe": [0x148, 'f']  # 探头系数
         }
 
-        # 数据类型对应的字节长度
-        data_byte = {"i": 4, "f": 4, "h": 2, "d": 8}
+        # 数据类型字节数映射
+        type_size = {"i": 4, "f": 4, "h": 2, "d": 8}
 
-        # 水平时基枚举值表（秒/格）
+        # 水平时基枚举值（秒/格）
         tdiv_enum = [
             200e-12, 500e-12, 1e-9, 2e-9, 5e-9, 10e-9, 20e-9, 50e-9, 100e-9, 200e-9, 500e-9,
             1e-6, 2e-6, 5e-6, 10e-6, 20e-6, 50e-6, 100e-6, 200e-6, 500e-6,
@@ -130,163 +102,160 @@ class GathererSDS804X:
             1, 2, 5, 10, 20, 50, 100, 200, 500, 1000
         ]
 
-        # 遍历所有通道（1-4）
-        for channel_num in range(1, 5):
-            # 检查通道是否启用且可见
-            channel_enabled = self.instrument.query(f":CHANnel{channel_num}:SWITch?").strip() == "ON"
-            channel_visible = self.instrument.query(f":CHANnel{channel_num}:VISible?").strip() == "ON"
+        # 解析原始参数
+        channel_parameters = {}
+        for param_name, (addr_offset, data_type) in param_format.items():
+            byte_count = type_size[data_type]
+            param_bytes = preamble_bytes[addr_offset:addr_offset + byte_count]
+            param_value = struct.unpack(data_type, param_bytes)[0]
+            channel_parameters[param_name] = param_value
 
-            if channel_enabled and channel_visible:
-                channel_name = f"C{channel_num}"
-                self.channels_parameters[channel_name] = {}
+        # 转换时基值
+        tdiv_index = channel_parameters["tdiv"]
+        channel_parameters["tdiv"] = tdiv_enum[tdiv_index]
 
-                # 设置波形源并获取前导码
-                self.instrument.write(f":WAVeform:SOURce {channel_name}")
-                self.instrument.write(":WAVeform:PREamble?")
+        # 应用探头系数
+        probe_factor = channel_parameters["probe"]
+        channel_parameters["vdiv"] *= probe_factor
+        channel_parameters["offset"] *= probe_factor
 
-                # 读取原始数据并跳过头部
-                recv_all = self.instrument.read_raw()
-                recv = recv_all[recv_all.find(b'#') + 11:]
+        return channel_parameters
 
-                # 解析各个参数
-                for param_name, (addr_offset, data_type) in param_addr_type.items():
-                    byte_count = data_byte[data_type]
-                    param_bytes = recv[addr_offset:addr_offset + byte_count]
-                    param_value = struct.unpack(data_type, param_bytes)[0]
-                    self.channels_parameters[channel_name][param_name] = param_value
+    def snapshot_channels_parameters(self, timeout: float = 10.0):
+        """快照当前通道参数"""
+        self.instrument.write(":WAVeform:STARt 0")
+        self.instrument.write(":TRIGger:MODE FTRIG")
+        self.wait_for_trigger_stop(timeout=timeout)
 
-                # 后处理：转换枚举值和应用探头系数
-                tdiv_index = self.channels_parameters[channel_name]["tdiv"]
-                self.channels_parameters[channel_name]["tdiv"] = tdiv_enum[tdiv_index]
+        self.channels_parameters = {}
+        enabled_channels = self.get_enabled_channels()
+        for channel in enabled_channels:
+            preamble_bytes = self.read_channel_preamble(channel)
+            channel_parameters = self.parse_channel_preamble(preamble_bytes)
+            self.channels_parameters[channel] = channel_parameters
 
-                probe_factor = self.channels_parameters[channel_name]["probe"]
-                self.channels_parameters[channel_name]["vdiv"] *= probe_factor
-                self.channels_parameters[channel_name]["offset"] *= probe_factor
+        temp = ', '.join(self.channels_parameters.keys())
+        print(f"通道参数快照已保存: {temp}")
 
-        # 输出更新结果
-        updated_channels = ', '.join(self.channels_parameters.keys())
-        print(f"成功更新通道参数，打开且显示的通道: {updated_channels}")
-
-    def get_channel_parameters(self, channel_name: str):
-        """
-        获取指定通道的参数配置。
-
-        Args:
-            channel_name: 通道标识符，如 "C1", "C2"
-
-        Returns:
-            通道参数字典
-
-        Raises:
-            GathererError: 指定通道不存在或参数未初始化
-        """
-        if channel_name in self.channels_parameters:
-            return self.channels_parameters[channel_name]
+    def get_channel_parameters(self, channel: str):
+        """获取指定通道的参数"""
+        if channel in self.channels_parameters:
+            return self.channels_parameters[channel]
         else:
-            raise GathererError(f"{self.instrument.resource_name} 通道未找到: {channel_name}")
+            raise GathererError(f"通道未找到 {channel}")
 
-    def arm(self, delay: float = 0.1):
-        """
-        配置示波器为单次触发就绪状态。
+    def verify_channel_parameters(self, channel: str):
+        """验证指定通道的参数是否与快照一致"""
+        if channel not in self.channels_parameters:
+            raise GathererError(f"通道 {channel} 不在快照中")
 
-        Args:
-            delay: 准备状态稳定延迟时间（秒）
-        """
-        self.instrument.write(":TRIGger:MODE SINGle")  # 设置为单次触发模式
-        self.instrument.write(":TRIGger:RUN")  # 启动触发准备
-        time.sleep(delay)  # 等待仪器稳定
+        preamble_bytes = self.read_channel_preamble(channel)
+        current_params = self.parse_channel_preamble(preamble_bytes)
+        snapshot_params = self.channels_parameters[channel]
+
+        if current_params != snapshot_params:
+            for param in snapshot_params.keys():
+                if param in current_params and snapshot_params[param] != current_params[param]:
+                    old_val = snapshot_params[param]
+                    new_val = current_params[param]
+                    if isinstance(old_val, (int, float)):
+                        change = ((new_val - old_val) / old_val * 100) if old_val != 0 else float('inf')
+                        print(f"{param}: {old_val} → {new_val} ({change:+.2f}%)")
+                    else:
+                        print(f"{param}: {old_val} → {new_val}")
+            raise GathererError(f"通道 {channel} 参数已修改")
+
+    def arm(self, timeout: float = 1.0):
+        """激活示波器（单次触发模式）"""
+        self.instrument.write(":TRIGger:RUN")
+        trigger_mode = self.instrument.query(":TRIGger:MODE?").strip()
+        if trigger_mode != "SINGle":
+            self.instrument.write(":TRIGger:MODE SINGle")
+
+        start_time = time.perf_counter()
+        while True:
+            trigger_status = self.instrument.query(":TRIGger:STATus?").strip()
+            elapsed_time = time.perf_counter() - start_time
+
+            if trigger_status == "Ready":
+                break
+            if elapsed_time > timeout:
+                raise GathererError(f"激活示波器超时")
+            time.sleep(0.01)
 
     def de_arm(self):
-        """
-        停止示波器触发采集。
-
-        将示波器置于安全停止状态。
-        """
-        self.instrument.write(":TRIGger:STOP")  # 停止触发
+        """取消激活示波器"""
+        self.instrument.write(":TRIGger:STOP")
 
     def open_traceset(self, traceset_path: str = "", headers: dict = None):
-        """
-        打开一个 TraceSet 文件，准备存储采集的数据。
-
-        Args:
-            traceset_path: 文件路径
-            headers: TraceSet 的头部信息
-        """
-        self.traceset = trs_open(path=traceset_path,  # 路径
-                                 mode='w',  # 模式: r, w, x, a (默认为 x)
-                                 engine='TrsEngine',  # 可选: 如何存储 TraceSet (默认为 TrsEngine)
-                                 headers=headers,  # 头部信息
-                                 padding_mode=TracePadding.AUTO,  # 填充模式
-                                 live_update=True)  # 可选: 更新 TRS 文件以进行实时预览 (小性能损失)
-        print(f"成功创建 TraceSet 文件: {traceset_path}")
+        """打开TRS迹线文件"""
+        self.traceset = trs_open(
+            path=traceset_path,
+            mode='w',
+            engine='TrsEngine',
+            headers=headers,
+            padding_mode=TracePadding.AUTO,
+            live_update=True
+        )
 
     def close_traceset(self):
-        """
-        关闭当前打开的 TraceSet 文件。
-        """
-        self.traceset.close()
+        """关闭TRS迹线文件"""
+        if self.traceset:
+            self.traceset.close()
 
     def acquisition(self, trace_parameter_map: TraceParameterMap = None, timeout: float = 10.0):
-        """
-        配置示波器读取波形数据。
+        """采集波形数据并保存为迹线"""
+        self.wait_for_trigger_stop(timeout=timeout)
 
-        Args:
-            trace_parameter_map: 包含每个通道波形参数的映射
-            timeout: 超时等待时间（秒）
+        enabled_channels = self.get_enabled_channels()
+        for channel in enabled_channels:
+            self.instrument.write(":WAVeform:STARt 0")
+            self.verify_channel_parameters(channel)
 
-        Raises:
-            GathererTimeout: 如果超时
-            GathererError: 如果读取数据时发生错误
-        """
-        # 等待触发完成
-        self.wait_acquisition_ready(timeout=timeout)
+            # 分批读取配置
+            point_number = self.channels_parameters[channel]["point_num"]
+            batch_size = int(float(self.instrument.query(":WAVeform:MAXPoint?").strip()))
+            batch_number = math.ceil(point_number / batch_size)
+            if point_number > batch_size:
+                self.instrument.write(f":WAVeform:POINt {batch_size}")
 
-        # 遍历通道并获取波形数据
-        for channel_name, channel_parameters in self.channels_parameters.items():
-            self.instrument.write(":WAVeform:STARt 0")  # 设置波形起始位置为 0
-            self.instrument.write(f":WAVeform:SOURce {channel_name}")  # 设置波形数据来源为当前通道
-            # 获取实际采样点数，确保与初始采样点数一致
-            points = channel_parameters["point_num"]
-            if int(float(self.instrument.query(f":ACQuire:POINts?").strip())) != points:
-                raise GathererError(f"{self.instrument.resource_name} 实际采样点数与初始采样点数不同")
-            # 获取一次可获取波形数据的最大点数
-            one_piece_num = float(self.instrument.query(":WAVeform:MAXPoint?").strip())
-            read_times = math.ceil(points / one_piece_num)
-            # 如果点数超过最大值，设置每次读取的点数
-            if points > one_piece_num:
-                self.instrument.write(f":WAVeform:POINt {one_piece_num}")
-            # 根据ADC位数设置波形数据宽度
-            if channel_parameters["adc_bit"] > 8:
+            # 设置数据宽度
+            if self.channels_parameters[channel]["adc_bit"] > 8:
+                self.instrument.write(":WAVeform:BYTeorder LSB")
                 self.instrument.write(":WAVeform:WIDTh WORD")
             else:
                 self.instrument.write(":WAVeform:WIDTh BYTE")
-            # 初始化接收字节数据
-            recv_byte = b''
-            # 分段读取波形数据
-            for i in range(0, read_times):
-                start = i * one_piece_num
-                # 设置每个切片的起始点
-                self.instrument.write(f":WAVeform:STARt {start}")  # 设置每个切片的起始位置
-                # 获取每个切片的波形数据
-                self.instrument.write(":WAVeform:DATA?")  # 读取波形数据
-                recv_rtn = self.instrument.read_raw()  # 读取原始数据
-                # 解析返回的原始数据块
-                block_start = recv_rtn.find(b'#')
-                data_digit = int(recv_rtn[block_start + 1:block_start + 2])
+
+            # 分批读取数据
+            received_bytes_all = b''
+            for batch_idx in range(0, batch_number):
+                start_idx = batch_idx * batch_size
+                current_batch_size = min(batch_size, point_number - batch_idx * batch_size)
+                self.instrument.write(f":WAVeform:STARt {start_idx}")
+                self.instrument.write(f":WAVeform:POINt {current_batch_size}")
+                self.instrument.write(":WAVeform:DATA?")
+                received_bytes = self.instrument.read_raw()
+
+                # 解析数据块
+                block_start = received_bytes.find(b'#')
+                data_digit = int(received_bytes[block_start + 1:block_start + 2])
                 data_start = block_start + 2 + data_digit
-                data_len = int(recv_rtn[block_start + 2:data_start])
-                recv_byte += recv_rtn[data_start:data_start + data_len]
-            # 根据ADC位数转换接收到的字节数据
-            if channel_parameters["adc_bit"] > 8:
-                convert_data = struct.unpack("%dh" % points, recv_byte)  # 转换为有符号短整型
+                data_len = int(received_bytes[block_start + 2:data_start])
+                received_bytes_all += received_bytes[data_start:data_start + data_len]
+
+            # 转换数据格式
+            if self.channels_parameters[channel]["adc_bit"] > 8:
+                convert_data = struct.unpack("<%dh" % point_number, received_bytes_all)
+                sample_coding = SampleCoding.SHORT
             else:
-                convert_data = struct.unpack("%db" % points, recv_byte)  # 转换为有符号字节型
-            # 清理临时数据并进行垃圾回收
-            del recv_byte  # 清除临时数据，释放内存
-            gc.collect()  # 强制垃圾回收
-            # 创建 Trace 对象并添加到 TraceSet
-            trace = Trace(sample_coding=SampleCoding.SHORT,  # 12bit示波器用有符号短整型
-                          samples=convert_data,
-                          parameters=trace_parameter_map,
-                          title=channel_name)
-            self.traceset.append(trace)  # 将新采集的 Trace 添加到 TraceSet 中
+                convert_data = struct.unpack("%db" % point_number, received_bytes_all)
+                sample_coding = SampleCoding.BYTE
+
+            # 创建并保存迹线
+            trace = Trace(
+                sample_coding=sample_coding,
+                samples=convert_data,
+                parameters=trace_parameter_map,
+                title=channel
+            )
+            self.traceset.append(trace)

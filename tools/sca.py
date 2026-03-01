@@ -26,6 +26,29 @@ def index_str_to_range(index_str: str):
         return [int(index_str)]
 
 
+def hex_dump(data: bytes, bytes_per_line=16):
+    """以16进制格式打印所有数据"""
+    print(f"总字节数: {len(data)}")
+    print("-" * 80)
+
+    for i in range(0, len(data), bytes_per_line):
+        # 当前行的字节切片
+        chunk = data[i:i + bytes_per_line]
+
+        # 十六进制部分
+        hex_str = ' '.join(f"{b:02x}" for b in chunk)
+        # 对齐
+        hex_str = hex_str.ljust(bytes_per_line * 3 - 1)
+
+        # ASCII部分
+        ascii_str = ''.join(chr(b) if 32 <= b <= 126 else '.' for b in chunk)
+
+        # 打印
+        print(f"{i:04x}: {hex_str} | {ascii_str}")
+
+    print("-" * 80)
+
+
 def hw(byte):
     """计算单个字节的汉明重量"""
     weight = 0

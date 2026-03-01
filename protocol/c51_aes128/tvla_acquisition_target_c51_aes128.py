@@ -17,7 +17,7 @@ if __name__ == '__main__':
     # 示波器配置参数
     gatherer_sds804x_resource_name = "TCPIP0::169.254.114.206::inst0::INSTR"
     gatherer_sds804x_ref_channel_name = "C1"
-    gatherer_sds804x_arm_delay = 0.1
+    gatherer_sds804x_arm_timeout = 0.1
     gatherer_sds804x_acquisition_timeout = 5.0
     gatherer_sds804x_acquisition_times = 1000
     gatherer_sds804x_traceset_path = "D:\\traceset\\aes128_en_tvla.trs"
@@ -28,8 +28,8 @@ if __name__ == '__main__':
     # 示波器初始化
     gatherer_sds804x = GathererSDS804X()
     gatherer_sds804x.open_instrument(gatherer_sds804x_resource_name)  # 连接示波器
-    gatherer_sds804x.arm(gatherer_sds804x_arm_delay)  # 进入触发准备
-    gatherer_sds804x.update_channels_parameters(timeout=gatherer_sds804x_acquisition_timeout)  # 更新通道参数
+    gatherer_sds804x.arm(gatherer_sds804x_arm_timeout)  # 进入触发准备
+    gatherer_sds804x.snapshot_channels_parameters(timeout=gatherer_sds804x_acquisition_timeout)  # 更新通道参数
 
     # 写入TraceSet参数
     traceset_parameter_map = TraceSetParameterMap()  # 创建参数映射
@@ -92,7 +92,7 @@ if __name__ == '__main__':
                 target_c51_aes128.init(bytes.fromhex(target_c51_aes128_key_hex))
 
             # 示波器准备采集
-            gatherer_sds804x.arm(delay=gatherer_sds804x_arm_delay)
+            gatherer_sds804x.arm(gatherer_sds804x_arm_timeout)
 
             # 设置Trace参数
             trace_parameter_map = TraceParameterMap()
@@ -157,7 +157,7 @@ if __name__ == '__main__':
                 target_c51_aes128.init(bytes.fromhex(target_c51_aes128_key_hex))
 
             # 示波器准备采集
-            gatherer_sds804x.arm(delay=gatherer_sds804x_arm_delay)
+            gatherer_sds804x.arm(gatherer_sds804x_arm_timeout)
 
             # 生成测试数据
             input_hex = generate_random_hex_string(16)  # 16字节随机数
@@ -202,6 +202,5 @@ if __name__ == '__main__':
 
     # 资源清理
     target_c51_aes128.close()
-    gatherer_sds804x.de_arm()
     gatherer_sds804x.close_traceset()
     gatherer_sds804x.close_instrument()

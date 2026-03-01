@@ -8,30 +8,6 @@ from trsfile import trs_open
 from trsfile import Trace, SampleCoding, TracePadding
 from trsfile.parametermap import TraceParameterMap
 
-
-def hex_dump(data, bytes_per_line=16):
-    """以16进制格式打印所有数据"""
-    print(f"总字节数: {len(data)}")
-    print("-" * 80)
-
-    for i in range(0, len(data), bytes_per_line):
-        # 当前行的字节切片
-        chunk = data[i:i + bytes_per_line]
-
-        # 十六进制部分
-        hex_str = ' '.join(f"{b:02x}" for b in chunk)
-        # 对齐
-        hex_str = hex_str.ljust(bytes_per_line * 3 - 1)
-
-        # ASCII部分
-        ascii_str = ''.join(chr(b) if 32 <= b <= 126 else '.' for b in chunk)
-
-        # 打印
-        print(f"{i:04x}: {hex_str} | {ascii_str}")
-
-    print("-" * 80)
-
-
 if __name__ == '__main__':
     gatherer_sds804x_resource_name = "TCPIP0::169.254.114.206::inst0::INSTR"
     gatherer_sds804x_ref_channel_name = "C1"
@@ -49,8 +25,29 @@ if __name__ == '__main__':
         timeout=5000,
         chunk_size=20 * 1024 * 1024,
     )
-    # sds804x.write(":TRIGger:RUN")
+
+    trigger_status = sds804x.query(":TRIGger:STATus?").strip()
+    if trigger_status != "Stop":
+
+        sds804x.write(":TRIGger:MODE SINGle")
+        while True:
+            trigger_mode = sds804x.query(":TRIGger:MODE?").strip()
+            if trigger_mode == "SINGle":
+                break
+            time.sleep(0.01)
+
+        sds804x.write(":TRIGger:MODE FTRIG")
+
+        while True:
+            trigger_status = sds804x.query(":TRIGger:STATus?").strip()
+            if trigger_status == "Stop":
+                break
+            time.sleep(0.01)
+
     sds804x.write(":TRIGger:MODE SINGle")
+
+    # sds804x.write(":TRIGger:RUN")
+    # sds804x.write(":TRIGger:MODE SINGle")
     # sds804x.write(":WAVeform:BYTeorder LSB")
     # temp = sds804x.query(":WAVeform:BYTeorder?").strip()
     # print(temp)
