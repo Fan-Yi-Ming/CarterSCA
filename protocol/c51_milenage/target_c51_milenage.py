@@ -21,6 +21,7 @@ class TargetC51Milenage:
         frame = create_uart_frame(0x04, bytes())
         received_bytes = self.serial_communicator.send_and_receive(frame, 8)
         parse_uart_frame(received_bytes)
+        print(f"设备初始化完成: TargetC51Milenage")
 
     def process(self, input_arr: bytes) -> Tuple[int, bytes]:
         frame = create_uart_frame(0x05, input_arr)
@@ -30,3 +31,4 @@ class TargetC51Milenage:
 
     def close(self):
         self.serial_communicator.close_connection()
+        print(f"设备已关闭")

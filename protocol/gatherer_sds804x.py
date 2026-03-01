@@ -118,7 +118,6 @@ class GathererSDS804X:
         probe_factor = channel_parameters["probe"]
         channel_parameters["vdiv"] *= probe_factor
         channel_parameters["offset"] *= probe_factor
-
         return channel_parameters
 
     def snapshot_channels_parameters(self, timeout: float = 10.0):

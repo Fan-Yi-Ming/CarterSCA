@@ -21,6 +21,7 @@ class TargetC51Aes128:
         frame = create_uart_frame(0x01, key_arr)
         received_bytes = self.serial_communicator.send_and_receive(frame, 8)
         parse_uart_frame(received_bytes)
+        print(f"设备初始化完成: TargetC51Aes128")
 
     def process(self, direction: int, input_arr: bytes) -> Tuple[int, bytes]:
         if direction == 0:
@@ -39,3 +40,4 @@ class TargetC51Aes128:
 
     def close(self):
         self.serial_communicator.close_connection()
+        print(f"设备已关闭")

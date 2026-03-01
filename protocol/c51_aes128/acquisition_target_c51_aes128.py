@@ -20,7 +20,7 @@ if __name__ == '__main__':
     gatherer_sds804x_arm_timeout = 0.1
     gatherer_sds804x_acquisition_timeout = 5.0
     gatherer_sds804x_acquisition_times = 10
-    gatherer_sds804x_traceset_path = "D:\\traceset\\aes128_en.trs"
+    gatherer_sds804x_traceset_path = "D:\\traceset\\aes128_en2.trs"
 
     # 异常处理配置
     max_exception_count = 10  # 允许的最大异常次数
@@ -117,11 +117,9 @@ if __name__ == '__main__':
         except Exception as e:
             # 异常处理
             current_exception_count += 1
-            elapsed_time = time.perf_counter() - start_time
 
             print(f"采集发生异常，异常次数: {current_exception_count}/{max_exception_count}")
             print(f"异常信息: {str(e)}")
-            print(f"用时 {elapsed_time:.3f} 秒")
 
             time.sleep(3)
             exception_happened = True
