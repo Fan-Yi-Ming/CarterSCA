@@ -3,7 +3,7 @@ from uart.uart_frame import create_uart_frame, parse_uart_frame
 from typing import Tuple
 
 
-class TargetUsimUZ:
+class TargetUsimCN:
 
     def __init__(self, port="COM1", baudrate=115200, timeout=2.0, card_type=0):
         self.port = port
@@ -30,10 +30,10 @@ class TargetUsimUZ:
         command_apdu_hex = "00 B2 01 04 26"
         self.serial_communicator.transmit_apdu(0x02, bytes.fromhex(command_apdu_hex))
 
-        command_apdu_hex = "00 A4 04 04 10 A0 00 00 00 87 10 02 FF 49 FF FF 89 04 0B 00 FF"
+        command_apdu_hex = "00 A4 04 04 10 A0 00 00 00 87 10 02 FF 86 FF FF 89 FF FF FF FF"
         self.serial_communicator.transmit_apdu(0x02, bytes.fromhex(command_apdu_hex))
 
-        command_apdu_hex = "00 C0 00 00 39"
+        command_apdu_hex = "00 C0 00 00 3C"
         self.serial_communicator.transmit_apdu(0x02, bytes.fromhex(command_apdu_hex))
 
     def process(self, input_arr: bytes) -> Tuple[int, bytes, int, int]:
