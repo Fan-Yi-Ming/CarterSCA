@@ -58,7 +58,7 @@ if __name__ == '__main__':
     gatherer_sds804x.open_traceset(traceset_path=gatherer_sds804x_traceset_path, headers=headers)
 
     # ============================ 固定组采集 ============================
-    input_hex = generate_random_hex_string(32)  # 16字节随机数
+    input_hex = generate_random_hex_string(32)  # 32字节随机数
     input_arr = bytes.fromhex(input_hex)
 
     successful_count = 0
