@@ -3,16 +3,14 @@ import trsfile.traceparameter as tp
 from trsfile import Header, SampleCoding
 from trsfile.parametermap import TraceSetParameterMap, TraceParameterDefinitionMap, TraceParameterMap
 from trsfile.traceparameter import ParameterType, TraceParameterDefinition
-from protocol.c51_aes128.target_c51_aes128 import TargetC51Aes128
 from protocol.gatherer_sds804x import GathererSDS804X
+from protocol.usim.target_usim_uz import TargetUsimUZ
 from tools.sca import generate_random_hex_string
 
 if __name__ == '__main__':
     # 目标设备初始化
-    target_c51_aes128_direction = 1  # 0:加密 1:解密
-    target_c51_aes128_key_hex = "2B 7E 15 16 28 AE D2 A6 AB F7 15 88 09 CF 4F 3C"
-    target_c51_aes128 = TargetC51Aes128(port="COM3", baudrate=115200, timeout=1.0)
-    target_c51_aes128.init(bytes.fromhex(target_c51_aes128_key_hex))
+    target_usim = TargetUsimUZ(port="COM1", baudrate=115200, timeout=1.0)
+    target_usim.init()
 
     # 示波器配置参数
     gatherer_sds804x_resource_name = "TCPIP0::169.254.114.206::inst0::INSTR"
@@ -20,7 +18,7 @@ if __name__ == '__main__':
     gatherer_sds804x_arm_timeout = 1.0
     gatherer_sds804x_acquisition_timeout = 5.0
     gatherer_sds804x_acquisition_times = 1000
-    gatherer_sds804x_traceset_path = "D:\\traceset\\aes128_en.trs"
+    gatherer_sds804x_traceset_path = "D:\\traceset\\usim.trs"
 
     # 异常处理配置
     max_exception_count = 10  # 允许的最大异常次数
@@ -32,16 +30,12 @@ if __name__ == '__main__':
     gatherer_sds804x.snapshot_channels_parameters(gatherer_sds804x_acquisition_timeout)
 
     # 写入TraceSet参数
-    traceset_parameter_map = TraceSetParameterMap()  # 创建参数映射
-    direction_arr = bytes([target_c51_aes128_direction])
-    key_arr = bytes.fromhex(target_c51_aes128_key_hex)
-    traceset_parameter_map["DIRECTION"] = tp.ByteArrayParameter(direction_arr)
-    traceset_parameter_map["KEY"] = tp.ByteArrayParameter(key_arr)
+    traceset_parameter_map = TraceSetParameterMap()
 
-    # 定义Trace元数据
+    # 定义单条Trace参数结构（参数定义映射）
     trace_parameter_definition_map = TraceParameterDefinitionMap()
-    trace_parameter_definition_map["INPUT"] = TraceParameterDefinition(ParameterType.BYTE, 16, 0)  # 16字节输入数据
-    trace_parameter_definition_map["OUTPUT"] = TraceParameterDefinition(ParameterType.BYTE, 16, 16)  # 16字节输出数据
+    trace_parameter_definition_map["INPUT"] = TraceParameterDefinition(ParameterType.BYTE, 32, 0)
+    trace_parameter_definition_map["OUTPUT"] = TraceParameterDefinition(ParameterType.BYTE, 2, 32)
 
     # 构建TRS文件头
     ref_channel_parameters = gatherer_sds804x.get_channel_parameters(gatherer_sds804x_ref_channel_name)
@@ -83,23 +77,24 @@ if __name__ == '__main__':
             # 目标设备重新初始化
             if exception_happened:
                 exception_happened = False
-                target_c51_aes128.close()
-                target_c51_aes128.init(bytes.fromhex(target_c51_aes128_key_hex))
+                target_usim.close()
+                target_usim.init()
 
             # 示波器准备采集
             gatherer_sds804x.arm(gatherer_sds804x_arm_timeout)
 
             # 生成测试数据
-            input_hex = generate_random_hex_string(16)  # 16字节随机数
+            rand_hex = generate_random_hex_string(16)
+            autn_hex = "FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF"
 
             # 设置Trace参数
             trace_parameter_map = TraceParameterMap()
-            input_arr = bytes.fromhex(input_hex)
+            input_arr = bytes.fromhex(rand_hex + " " + autn_hex)
             trace_parameter_map["INPUT"] = tp.ByteArrayParameter(input_arr)
 
             # 触发目标设备执行
-            command, data = target_c51_aes128.process(target_c51_aes128_direction, input_arr)
-            output_arr = data
+            command, response_data, sw1, sw2 = target_usim.process(input_arr)
+            output_arr = bytes([sw1, sw2])
             trace_parameter_map["OUTPUT"] = tp.ByteArrayParameter(output_arr)
 
             # 采集并保存数据
@@ -128,6 +123,6 @@ if __name__ == '__main__':
     print(f"采集完成，成功采集 {successful_count} 次，异常 {current_exception_count} 次")
 
     # 资源清理
-    target_c51_aes128.close()
+    target_usim.close()
     gatherer_sds804x.close_traceset()
     gatherer_sds804x.close_instrument()

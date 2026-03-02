@@ -79,8 +79,8 @@ class Cutter:
 if __name__ == '__main__':
     cutter = Cutter()
 
-    cutter.traceset_path = "D:\\traceset\\aes128_en.trs"
-    cutter.sample_first_pos = 0
-    cutter.sample_number = 200
+    cutter.traceset_path = "D:\\traceset\\aes128_en+LowPass(203439)+StaticAlign(203755).trs"
+    cutter.sample_first_pos = 400000
+    cutter.sample_number = 200000
 
     cutter.cut()

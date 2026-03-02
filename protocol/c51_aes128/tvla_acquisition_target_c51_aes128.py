@@ -17,7 +17,7 @@ if __name__ == '__main__':
     # 示波器配置参数
     gatherer_sds804x_resource_name = "TCPIP0::169.254.114.206::inst0::INSTR"
     gatherer_sds804x_ref_channel_name = "C1"
-    gatherer_sds804x_arm_timeout = 0.1
+    gatherer_sds804x_arm_timeout = 1.0
     gatherer_sds804x_acquisition_timeout = 5.0
     gatherer_sds804x_acquisition_times = 1000
     gatherer_sds804x_traceset_path = "D:\\traceset\\aes128_en_tvla.trs"
