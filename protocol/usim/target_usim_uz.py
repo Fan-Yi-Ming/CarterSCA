@@ -5,7 +5,7 @@ from typing import Tuple
 
 class TargetUsimUZ:
 
-    def __init__(self, port="COM1", baudrate=115200, timeout=2.0, card_type=0):
+    def __init__(self, port="COM1", baudrate=115200, timeout=1.0):
         self.port = port
         self.baudrate = baudrate
         self.timeout = timeout
