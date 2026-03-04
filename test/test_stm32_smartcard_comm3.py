@@ -3,7 +3,7 @@ import time
 from uart.serial_reader import list_serial_ports, SerialCommunicator
 from uart.uart_frame import create_uart_frame
 
-# 15836141022
+# 未知USIM卡
 if __name__ == '__main__':
     list_serial_ports()
 
