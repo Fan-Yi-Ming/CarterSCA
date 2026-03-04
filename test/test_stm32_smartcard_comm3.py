@@ -23,7 +23,7 @@ if __name__ == '__main__':
     apdu_hex = "00 A4 04 04 10 A0 00 00 00 87 10 02 FF 86 FF FF 89 FF FF FF FF"
     serial_communicator.transmit_apdu(0x02, bytes.fromhex(apdu_hex))
 
-    apdu_hex = "00 C0 00 00 3C"
+    apdu_hex = "00 C0 00 00 40"
     serial_communicator.transmit_apdu(0x02, bytes.fromhex(apdu_hex))
 
     for i in range(10):
