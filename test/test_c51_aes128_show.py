@@ -14,7 +14,6 @@ if __name__ == '__main__':
     gatherer_sds804x_ref_channel_name = "C1"
     gatherer_sds804x_arm_timeout = 1.0
     gatherer_sds804x_acquisition_timeout = 5.0
-    gatherer_sds804x_acquisition_times = 1000
     gatherer_sds804x_traceset_path = "D:\\traceset\\aes128_show.trs"
 
     # 示波器初始化
