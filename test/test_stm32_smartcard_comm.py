@@ -5,7 +5,6 @@ from uart.uart_frame import create_uart_frame
 
 # 772057371(旧) 990395338
 if __name__ == '__main__':
-    # 列出系统中所有可用的串口端口。
     list_serial_ports()
 
     serial_communicator = SerialCommunicator()
