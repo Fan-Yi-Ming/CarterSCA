@@ -17,11 +17,11 @@ if __name__ == '__main__':
     gatherer_sds804x_ref_channel_name = "C1"
     gatherer_sds804x_arm_timeout = 1.0
     gatherer_sds804x_acquisition_timeout = 5.0
-    gatherer_sds804x_acquisition_times = 1000
+    gatherer_sds804x_acquisition_times = 2000
     gatherer_sds804x_traceset_path = "D:\\traceset\\usim.trs"
 
     # 异常处理配置
-    max_exception_count = 10  # 允许的最大异常次数
+    max_exception_count = 100  # 允许的最大异常次数
 
     # 示波器初始化
     gatherer_sds804x = GathererSDS804X()
