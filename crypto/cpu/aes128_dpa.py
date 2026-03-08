@@ -8,7 +8,7 @@ from trsfile.parametermap import TraceParameterMap, TraceSetParameterMap, TraceP
 from typing import Tuple
 from multiprocessing import Pool, cpu_count
 from tools.aes import Aes, aes_inv_keyexpansion
-from tools.sca import index_str_to_range, rank_sbox_key_guesses, report_sbox_key_guesses, d_func
+from tools.sca import d_func, index_str_to_range, rank_sbox_key_guesses, report_sbox_key_guesses
 
 
 def process_single_trace(traceset_path, trace_index,
@@ -312,7 +312,7 @@ if __name__ == '__main__':
 
     # 第一轮攻击配置（加密）
     aes128_dpa.traceset_path = "D:\\traceset\\aes128_en+LowPass(203439)+StaticAlign(203755).trs"
-    aes128_dpa.traceset2_switch = True
+    aes128_dpa.traceset2_switch = False
     aes128_dpa.sample_first_pos = 450000
     aes128_dpa.sample_number = 20000
     aes128_dpa.crypto_direction = 0
@@ -321,7 +321,7 @@ if __name__ == '__main__':
 
     # 第二轮攻击配置（解密）
     aes128_dpa.traceset_path = "D:\\traceset\\aes128_de+LowPass(211850)+StaticAlign(212310).trs"
-    aes128_dpa.traceset2_switch = True
+    aes128_dpa.traceset2_switch = False
     aes128_dpa.sample_first_pos = 470000
     aes128_dpa.sample_number = 30000
     aes128_dpa.crypto_direction = 1

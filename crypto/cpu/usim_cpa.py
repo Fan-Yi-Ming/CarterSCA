@@ -109,7 +109,8 @@ class UsimCPA:
         self.sbox_key_result_path = "./usim_cpa_sbox_key_result.npz"
         # 攻击结果数组: [attack_round_times, sbox_num, candidates]
         self.sbox_key_arr_3d = np.zeros((self.attack_round_times, self.sbox_num, self.candidates), dtype=np.uint8)
-        self.sbox_keycorr_arr_3d = np.zeros((self.attack_round_times, self.sbox_num, self.candidates), dtype=np.float32)
+        self.sbox_keyvalue_arr_3d = np.zeros((self.attack_round_times, self.sbox_num, self.candidates),
+                                             dtype=np.float32)
         self.sbox_keypos_arr_3d = np.zeros((self.attack_round_times, self.sbox_num, self.candidates), dtype=np.int32)
 
         self.traceset = None
@@ -195,7 +196,7 @@ class UsimCPA:
         for sbox_index in self.sbox_index_arr:
             report_sbox_key_guesses(sbox_index,
                                     self.sbox_key_arr_3d[self.attack_round_index][sbox_index],
-                                    self.sbox_keycorr_arr_3d[self.attack_round_index][sbox_index],
+                                    self.sbox_keyvalue_arr_3d[self.attack_round_index][sbox_index],
                                     self.sbox_keypos_arr_3d[self.attack_round_index][sbox_index],
                                     self.sample_first_pos)
 
@@ -204,7 +205,7 @@ class UsimCPA:
             np.savez(
                 self.sbox_key_result_path,
                 sbox_key_arr_3d=self.sbox_key_arr_3d,
-                sbox_keycorr_arr_3d=self.sbox_keycorr_arr_3d,
+                sbox_keyvalue_arr_3d=self.sbox_keyvalue_arr_3d,
                 sbox_keypos_arr_3d=self.sbox_keypos_arr_3d
             )
             print(f"Sbox分析结果已保存")
@@ -218,7 +219,7 @@ class UsimCPA:
         try:
             data = np.load(self.sbox_key_result_path)
             self.sbox_key_arr_3d = data['sbox_key_arr_3d']
-            self.sbox_keycorr_arr_3d = data['sbox_keycorr_arr_3d']
+            self.sbox_keyvalue_arr_3d = data['sbox_keyvalue_arr_3d']
             self.sbox_keypos_arr_3d = data['sbox_keypos_arr_3d']
             print(f"Sbox分析结果已加载")
             if self.sbox_key_arr_3d.shape[2] != self.candidates:
@@ -277,7 +278,7 @@ class UsimCPA:
         for sbox_index in self.sbox_index_arr:
             correlation_arr_2d = analyze_process_cpa_cpu(self.data_arr_3d[sbox_index], self.sample_arr_2d)
             (self.sbox_key_arr_3d[self.attack_round_index][sbox_index],
-             self.sbox_keycorr_arr_3d[self.attack_round_index][sbox_index],
+             self.sbox_keyvalue_arr_3d[self.attack_round_index][sbox_index],
              self.sbox_keypos_arr_3d[self.attack_round_index][sbox_index]) = rank_sbox_key_guesses(correlation_arr_2d,
                                                                                                    self.candidates)
 

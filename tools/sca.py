@@ -181,25 +181,25 @@ def analyze_process_cpa_gpu2(data_arr_2d, sample_arr_2d, batch_size=10000):
     return correlation_arr_2d.astype(np.float32)
 
 
-def rank_sbox_key_guesses(keyvalue_arr_2d, candidates):
-    sbox_size = keyvalue_arr_2d.shape[0]
+def rank_sbox_key_guesses(value_arr_2d, candidates):
+    sbox_size = value_arr_2d.shape[0]
 
-    abs_corr = np.abs(keyvalue_arr_2d)
-    max_abs_val = np.max(abs_corr, axis=1)  # 每个密钥的最大|r|
-    max_abs_pos = np.argmax(abs_corr, axis=1)  # 最大|r|出现的位置
+    abs_value = np.abs(value_arr_2d)
+    max_abs_val = np.max(abs_value, axis=1)  # 每个密钥的最大|r|
+    max_abs_pos = np.argmax(abs_value, axis=1)  # 最大|r|出现的位置
 
-    # 获取带符号的实际最大相关系数
-    actual_max_val = keyvalue_arr_2d[np.arange(sbox_size), max_abs_pos]
+    # 获取带符号的实际最大值
+    actual_max_val = value_arr_2d[np.arange(sbox_size), max_abs_pos]
 
     # 按|r|降序排序
     sorted_indices = np.argsort(-max_abs_val)
 
     # 返回前candidates个结果
     sbox_key_arr = sorted_indices[:candidates].astype(np.uint8)
-    sbox_keycorr_arr = actual_max_val[sorted_indices[:candidates]]
+    sbox_keyvalue_arr = actual_max_val[sorted_indices[:candidates]]
     sbox_keypos_arr = max_abs_pos[sorted_indices[:candidates]]
 
-    return sbox_key_arr, sbox_keycorr_arr, sbox_keypos_arr
+    return sbox_key_arr, sbox_keyvalue_arr, sbox_keypos_arr
 
 
 def report_sbox_key_guesses(sbox_index, sbox_key_arr, sbox_keyvalue_arr, sbox_keypos_arr, sample_first_pos):

@@ -89,7 +89,7 @@ class Aes128CPA:
         self.sbox_key_result_path = "./aes128_cpa_sbox_key_result.npz"
         # 攻击结果数组: [sbox_num, candidates]
         self.sbox_key_arr_2d = np.zeros((self.sbox_num, self.candidates), dtype=np.uint8)
-        self.sbox_keycorr_arr_2d = np.zeros((self.sbox_num, self.candidates), dtype=np.float32)
+        self.sbox_keyvalue_arr_2d = np.zeros((self.sbox_num, self.candidates), dtype=np.float32)
         self.sbox_keypos_arr_2d = np.zeros((self.sbox_num, self.candidates), dtype=np.int32)
 
         self.traceset = None
@@ -174,7 +174,7 @@ class Aes128CPA:
         for sbox_index in self.sbox_index_arr:
             report_sbox_key_guesses(sbox_index,
                                     self.sbox_key_arr_2d[sbox_index],
-                                    self.sbox_keycorr_arr_2d[sbox_index],
+                                    self.sbox_keyvalue_arr_2d[sbox_index],
                                     self.sbox_keypos_arr_2d[sbox_index],
                                     self.sample_first_pos)
 
@@ -183,7 +183,7 @@ class Aes128CPA:
             np.savez(
                 self.sbox_key_result_path,
                 sbox_key_arr_2d=self.sbox_key_arr_2d,
-                sbox_keycorr_arr_2d=self.sbox_keycorr_arr_2d,
+                sbox_keyvalue_arr_2d=self.sbox_keyvalue_arr_2d,
                 sbox_keypos_arr_2d=self.sbox_keypos_arr_2d
             )
             print(f"Sbox分析结果已保存")
@@ -197,7 +197,7 @@ class Aes128CPA:
         try:
             data = np.load(self.sbox_key_result_path)
             self.sbox_key_arr_2d = data['sbox_key_arr_2d']
-            self.sbox_keycorr_arr_2d = data['sbox_keycorr_arr_2d']
+            self.sbox_keyvalue_arr_2d = data['sbox_keyvalue_arr_2d']
             self.sbox_keypos_arr_2d = data['sbox_keypos_arr_2d']
             print(f"Sbox分析结果已加载")
             if self.sbox_key_arr_2d.shape[1] != self.candidates:
@@ -256,7 +256,7 @@ class Aes128CPA:
             correlation_arr_2d = analyze_process_cpa_gpu(self.data_arr_3d[sbox_index], self.sample_arr_2d,
                                                          self.batch_size)
             (self.sbox_key_arr_2d[sbox_index],
-             self.sbox_keycorr_arr_2d[sbox_index],
+             self.sbox_keyvalue_arr_2d[sbox_index],
              self.sbox_keypos_arr_2d[sbox_index]) = rank_sbox_key_guesses(correlation_arr_2d, self.candidates)
 
             if self.traceset2_switch:
@@ -301,6 +301,7 @@ class Aes128CPA:
 if __name__ == '__main__':
     aes128_cpa = Aes128CPA()
     aes128_cpa.process_number = 8
+    aes128_cpa.batch_size = 10000
 
     # 第一轮攻击配置（加密）
     aes128_cpa.traceset_path = "D:\\traceset\\aes128_en+LowPass(203439)+StaticAlign(203755).trs"
