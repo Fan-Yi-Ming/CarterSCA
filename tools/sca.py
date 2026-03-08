@@ -204,7 +204,7 @@ def rank_sbox_key_guesses(value_arr_2d, candidates):
 
 def report_sbox_key_guesses(sbox_index, sbox_key_arr, sbox_keyvalue_arr, sbox_keypos_arr, sample_first_pos):
     best_key = sbox_key_arr[0]
-    print(f"The Sbox{sbox_index} best correlation Key byte {best_key:02X}:")
+    print(f"The Sbox{sbox_index} best score Key byte {best_key:02X}:")
 
     candidates = sbox_key_arr.shape[0]
     for i in range(candidates):
