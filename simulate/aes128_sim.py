@@ -11,19 +11,21 @@ from tools.sca import generate_random_hex_string, hw
 if __name__ == '__main__':
     # 配置参数
     traceset_path = "D:\\traceset\\aes128_simulation.trs"
+    aes128_direction = 0  # 0:加密 1:解密
     aes128_key_hex = "2B 7E 15 16 28 AE D2 A6 AB F7 15 88 09 CF 4F 3C"
-    aes128_direction = 1  # 0:加密 1:解密
     simulate_times = 1000
 
-    # 初始化TRS文件参数
+    # 写入TraceSet参数
     traceset_parameter_map = TraceSetParameterMap()
+    traceset_parameter_map["DIRECTION"] = tp.ByteArrayParameter(bytes([aes128_direction]))
     traceset_parameter_map['KEY'] = tp.ByteArrayParameter(bytes.fromhex(aes128_key_hex))
 
+    # 定义Trace元数据
     trace_parameter_definition_map = TraceParameterDefinitionMap()
     trace_parameter_definition_map["INPUT"] = TraceParameterDefinition(ParameterType.BYTE, 16, 0)
     trace_parameter_definition_map["OUTPUT"] = TraceParameterDefinition(ParameterType.BYTE, 16, 16)
 
-    # 设置TRS文件头
+    # 构建TRS文件头
     headers = {
         Header.TRS_VERSION: 2,
         Header.TITLE_SPACE: 255,
@@ -80,7 +82,7 @@ if __name__ == '__main__':
 
             output_arr = aes.get_state()
 
-            # 保存轨迹
+            # 保存能量迹
             trace_parameter_map = TraceParameterMap()
             trace_parameter_map["INPUT"] = tp.ByteArrayParameter(input_arr)
             trace_parameter_map["OUTPUT"] = tp.ByteArrayParameter(output_arr)
@@ -122,7 +124,7 @@ if __name__ == '__main__':
 
             output_arr = aes.get_state()
 
-            # 保存轨迹
+            # 保存能量迹
             trace_parameter_map = TraceParameterMap()
             trace_parameter_map["INPUT"] = tp.ByteArrayParameter(input_arr)
             trace_parameter_map["OUTPUT"] = tp.ByteArrayParameter(output_arr)
