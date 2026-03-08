@@ -330,19 +330,19 @@ if __name__ == '__main__':
     usim_cpa.batch_size = 10000
 
     # 第一轮攻击
-    usim_cpa.traceset_path = "D:\\traceset\\c51_Milenage\\milenage.trs"
+    usim_cpa.traceset_path = "D:\\traceset\\c51_milenage\\milenage+LowPass(140039)+StaticAlign(140403).trs"
     usim_cpa.traceset2_switch = False
-    usim_cpa.sample_first_pos = 150000
-    usim_cpa.sample_number = 200000
+    usim_cpa.sample_first_pos = 450000
+    usim_cpa.sample_number = 30000
     usim_cpa.attack_round_index = 0
     usim_cpa.sbox_index_arr = index_str_to_range("0-15")
     usim_cpa.analyze()
 
     # 第二轮攻击
-    usim_cpa.traceset_path = "D:\\traceset\\c51_Milenage\\milenage.trs"
+    usim_cpa.traceset_path = "D:\\traceset\\c51_milenage\\milenage+LowPass(140039)+StaticAlign(140403)+StaticAlign(140856).trs"
     usim_cpa.traceset2_switch = False
-    usim_cpa.sample_first_pos = 150000
-    usim_cpa.sample_number = 200000
+    usim_cpa.sample_first_pos = 600000
+    usim_cpa.sample_number = 30000
     usim_cpa.attack_round_index = 1
     usim_cpa.sbox_index_arr = index_str_to_range("0-15")
     usim_cpa.analyze()

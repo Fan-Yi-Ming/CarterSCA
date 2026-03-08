@@ -123,6 +123,6 @@ if __name__ == '__main__':
     low_pass.num_processes = 16
 
     low_pass.weight = 20.0
-    low_pass.traceset_path = "D:\\traceset\\usim.trs"
+    low_pass.traceset_path = "D:\\traceset\\milenage.trs"
 
     low_pass.low_pass()

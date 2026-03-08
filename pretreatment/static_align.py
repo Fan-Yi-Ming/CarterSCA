@@ -185,11 +185,11 @@ if __name__ == '__main__':
     static_align.num_processes = 16
 
     static_align.ref_trace_index = 0
-    static_align.pattern_first_sample_pos = 520000
-    static_align.pattern_sample_number = 876165
-    static_align.shift_max = 400000
-    static_align.step_size = 100
-    static_align.threshold = 0.4
-    static_align.traceset_path = "D:\\traceset\\usim+LowPass(190339).trs"
+    static_align.pattern_first_sample_pos = 600000
+    static_align.pattern_sample_number = 6000
+    static_align.shift_max = 500
+    static_align.step_size = 1
+    static_align.threshold = 0.8
+    static_align.traceset_path = "D:\\traceset\\milenage+LowPass(140039)+StaticAlign(140403).trs"
 
     static_align.align()

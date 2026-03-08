@@ -254,23 +254,23 @@ class Aes128DPA:
         start_time = time.perf_counter()
 
         for i in self.sbox_index_arr:
-            diff_arr_2d = np.zeros((self.sbox_size, self.sample_number))
+            difference_arr_2d = np.zeros((self.sbox_size, self.sample_number))
             for j in range(self.sbox_size):
                 group = self.data_arr_3d[:, i, j]
                 mean_0 = np.mean(self.sample_arr_2d[group == 0], axis=0)
                 mean_1 = np.mean(self.sample_arr_2d[group == 1], axis=0)
-                diff_arr_2d[j, :] = mean_1 - mean_0
+                difference_arr_2d[j, :] = mean_1 - mean_0
 
             (self.sbox_key_arr_2d[i],
              self.sbox_keyvalue_arr_2d[i],
-             self.sbox_keypos_arr_2d[i]) = rank_sbox_key_guesses(diff_arr_2d, self.candidates)
+             self.sbox_keypos_arr_2d[i]) = rank_sbox_key_guesses(difference_arr_2d, self.candidates)
 
             if self.traceset2_switch:
                 for j in range(self.sbox_size):
                     trace_parameter_map = TraceParameterMap()
                     trace = Trace(
                         sample_coding=SampleCoding.FLOAT,
-                        samples=diff_arr_2d[j],
+                        samples=difference_arr_2d[j],
                         parameters=trace_parameter_map,
                         title=f"Sbox{i}-KeyGuess_0x{j:02X}")
                     self.traceset2.append(trace)
@@ -311,16 +311,16 @@ if __name__ == '__main__':
     aes128_dpa.d_fuc_mode = 11  # 汉明重量模型 阈值 < 4
 
     # 第一轮攻击配置（加密）
-    aes128_dpa.traceset_path = "D:\\traceset\\aes128_en+LowPass(203439)+StaticAlign(203755).trs"
+    aes128_dpa.traceset_path = "D:\\traceset\\c51_aes128\\aes128_en+LowPass(203439)+StaticAlign(203755).trs"
     aes128_dpa.traceset2_switch = False
     aes128_dpa.sample_first_pos = 450000
-    aes128_dpa.sample_number = 20000
+    aes128_dpa.sample_number = 30000
     aes128_dpa.crypto_direction = 0
     aes128_dpa.sbox_index_arr = index_str_to_range("0-15")
     aes128_dpa.analyze()
 
     # 第二轮攻击配置（解密）
-    aes128_dpa.traceset_path = "D:\\traceset\\aes128_de+LowPass(211850)+StaticAlign(212310).trs"
+    aes128_dpa.traceset_path = "D:\\traceset\\c51_aes128\\aes128_de+LowPass(211850)+StaticAlign(212310).trs"
     aes128_dpa.traceset2_switch = False
     aes128_dpa.sample_first_pos = 470000
     aes128_dpa.sample_number = 30000
