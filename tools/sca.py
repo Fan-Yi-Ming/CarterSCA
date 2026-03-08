@@ -3,13 +3,8 @@ import cupy as cp
 import numpy as np
 
 
-def generate_random_hex_string(length=16) -> str:
-    """
-    生成指定长度的随机十六进制字符串，并以空格分隔每两个字符。
-
-    :param length: 十六进制字符串的长度（默认为16）
-    :return: 格式化的十六进制字符串
-    """
+def generate_random_hex_string(length) -> str:
+    """生成指定长度的随机十六进制字符串，并以空格分隔每两个字符。"""
     hex_chars = '0123456789ABCDEF'
     hex_string = ''.join(random.choice(hex_chars) for _ in range(length * 2))
     formatted_hex_string = ' '.join(hex_string[i:i + 2] for i in range(0, len(hex_string), 2))
@@ -17,6 +12,13 @@ def generate_random_hex_string(length=16) -> str:
 
 
 def index_str_to_range(index_str: str):
+    """"
+    将索引字符串转换为索引范围列表
+
+    该函数处理两种格式的输入：
+    1. 单个数字：如 "5" -> 返回 [5]
+    2. 范围表示：如 "3-7" -> 返回 [3, 4, 5, 6, 7]
+    """
     if '-' in index_str:
         start, end = map(int, index_str.split('-'))
         # 为了包含结束值，需要 end + 1
@@ -56,6 +58,25 @@ def hw(byte):
         weight += byte & 1
         byte >>= 1
     return weight
+
+
+def get_bit(byte, index):
+    """获取字节指定索引位置的值"""
+    if not 0 <= index < 8:
+        raise ValueError(f"Bit index must be 0-7, got {index}")
+    return (byte >> index) & 1
+
+
+def d_func(byte, mode):
+    """选择函数 - 用于DPA攻击中的轨迹分类"""
+    if 0 <= mode < 8:
+        # 基于特定位的分类
+        return get_bit(byte, mode) == 1
+    if 8 <= mode <= 15:
+        # 基于汉明重量的分类，阈值为(mode-7)
+        threshold = mode - 7
+        return hw(byte) >= threshold
+    raise ValueError(f"d_func mode must be 0-15, got {mode}")
 
 
 def analyze_process_cpa_cpu(data_arr_2d, sample_arr_2d):
@@ -160,15 +181,15 @@ def analyze_process_cpa_gpu2(data_arr_2d, sample_arr_2d, batch_size=10000):
     return correlation_arr_2d.astype(np.float32)
 
 
-def rank_sbox_key_guesses(correlation_arr_2d, candidates):
-    sbox_size = correlation_arr_2d.shape[0]
+def rank_sbox_key_guesses(keyvalue_arr_2d, candidates):
+    sbox_size = keyvalue_arr_2d.shape[0]
 
-    abs_corr = np.abs(correlation_arr_2d)
+    abs_corr = np.abs(keyvalue_arr_2d)
     max_abs_val = np.max(abs_corr, axis=1)  # 每个密钥的最大|r|
     max_abs_pos = np.argmax(abs_corr, axis=1)  # 最大|r|出现的位置
 
     # 获取带符号的实际最大相关系数
-    actual_max_val = correlation_arr_2d[np.arange(sbox_size), max_abs_pos]
+    actual_max_val = keyvalue_arr_2d[np.arange(sbox_size), max_abs_pos]
 
     # 按|r|降序排序
     sorted_indices = np.argsort(-max_abs_val)
@@ -181,14 +202,14 @@ def rank_sbox_key_guesses(correlation_arr_2d, candidates):
     return sbox_key_arr, sbox_keycorr_arr, sbox_keypos_arr
 
 
-def report_sbox_key_guesses(sbox_index, sbox_key_arr, sbox_keycorr_arr, sbox_keypos_arr, sample_first_pos):
+def report_sbox_key_guesses(sbox_index, sbox_key_arr, sbox_keyvalue_arr, sbox_keypos_arr, sample_first_pos):
     best_key = sbox_key_arr[0]
     print(f"The Sbox{sbox_index} best correlation Key byte {best_key:02X}:")
 
     candidates = sbox_key_arr.shape[0]
     for i in range(candidates):
         key_candidate = sbox_key_arr[i]
-        correlation_value = sbox_keycorr_arr[i]
+        correlation_value = sbox_keyvalue_arr[i]
         relative_pos = sbox_keypos_arr[i]
         absolute_pos = sample_first_pos + relative_pos
         print(f"Key byte candidate: {key_candidate:02X}, "

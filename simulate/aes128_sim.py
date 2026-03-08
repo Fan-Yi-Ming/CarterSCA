@@ -10,7 +10,7 @@ from tools.sca import generate_random_hex_string, hw
 
 if __name__ == '__main__':
     # 配置参数
-    traceset_path = "..\\traceset\\aes128_simulation.trs"
+    traceset_path = "D:\\traceset\\aes128_simulation.trs"
     aes128_key_hex = "2B 7E 15 16 28 AE D2 A6 AB F7 15 88 09 CF 4F 3C"
     aes128_direction = 1  # 0:加密 1:解密
     simulate_times = 1000
