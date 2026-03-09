@@ -171,11 +171,11 @@ class Aes128DPA:
                 self.traceset2.close()
 
     def report(self):
-        for sbox_index in self.sbox_index_arr:
-            report_sbox_key_guesses(sbox_index,
-                                    self.sbox_key_arr_2d[sbox_index],
-                                    self.sbox_keyvalue_arr_2d[sbox_index],
-                                    self.sbox_keypos_arr_2d[sbox_index],
+        for i in self.sbox_index_arr:
+            report_sbox_key_guesses(i,
+                                    self.sbox_key_arr_2d[i],
+                                    self.sbox_keyvalue_arr_2d[i],
+                                    self.sbox_keypos_arr_2d[i],
                                     self.sample_first_pos)
 
     def save_sbox_key_result(self):
