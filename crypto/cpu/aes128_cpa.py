@@ -170,11 +170,11 @@ class Aes128CPA:
                 self.traceset2.close()
 
     def report(self):
-        for sbox_index in self.sbox_index_arr:
-            report_sbox_key_guesses(sbox_index,
-                                    self.sbox_key_arr_2d[sbox_index],
-                                    self.sbox_keyvalue_arr_2d[sbox_index],
-                                    self.sbox_keypos_arr_2d[sbox_index],
+        for i in self.sbox_index_arr:
+            report_sbox_key_guesses(i,
+                                    self.sbox_key_arr_2d[i],
+                                    self.sbox_keyvalue_arr_2d[i],
+                                    self.sbox_keypos_arr_2d[i],
                                     self.sample_first_pos)
 
     def save_sbox_key_result(self):
@@ -251,22 +251,22 @@ class Aes128CPA:
 
         print(f"开始分析Sbox")
         start_time = time.perf_counter()
-        for sbox_index in self.sbox_index_arr:
-            correlation_arr_2d = analyze_process_cpa_cpu(self.data_arr_3d[sbox_index], self.sample_arr_2d)
-            (self.sbox_key_arr_2d[sbox_index],
-             self.sbox_keyvalue_arr_2d[sbox_index],
-             self.sbox_keypos_arr_2d[sbox_index]) = rank_sbox_key_guesses(correlation_arr_2d, self.candidates)
+        for i in self.sbox_index_arr:
+            correlation_arr_2d = analyze_process_cpa_cpu(self.data_arr_3d[i], self.sample_arr_2d)
+            (self.sbox_key_arr_2d[i],
+             self.sbox_keyvalue_arr_2d[i],
+             self.sbox_keypos_arr_2d[i]) = rank_sbox_key_guesses(correlation_arr_2d, self.candidates)
 
             if self.traceset2_switch:
-                for i in range(self.sbox_size):
+                for j in range(self.sbox_size):
                     trace_parameter_map = TraceParameterMap()
                     trace = Trace(
                         sample_coding=SampleCoding.FLOAT,
-                        samples=correlation_arr_2d[i],
+                        samples=correlation_arr_2d[j],
                         parameters=trace_parameter_map,
-                        title=f"Sbox{sbox_index}-KeyGuess_0x{i:02X}")
+                        title=f"Sbox{i}-KeyGuess_0x{j:02X}")
                     self.traceset2.append(trace)
-            print(f"Sbox{sbox_index} 分析完成")
+            print(f"Sbox{i} 分析完成")
         elapsed_time = time.perf_counter() - start_time
         print(f"所有Sbox分析完成 用时 {elapsed_time:.3f} 秒")
 

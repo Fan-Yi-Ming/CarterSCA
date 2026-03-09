@@ -252,7 +252,6 @@ class Aes128DPA:
 
         print(f"开始分析Sbox")
         start_time = time.perf_counter()
-
         for i in self.sbox_index_arr:
             difference_arr_2d = np.zeros((self.sbox_size, self.sample_number))
             for j in range(self.sbox_size):
@@ -260,7 +259,6 @@ class Aes128DPA:
                 mean_0 = np.mean(self.sample_arr_2d[group == 0], axis=0)
                 mean_1 = np.mean(self.sample_arr_2d[group == 1], axis=0)
                 difference_arr_2d[j, :] = mean_1 - mean_0
-
             (self.sbox_key_arr_2d[i],
              self.sbox_keyvalue_arr_2d[i],
              self.sbox_keypos_arr_2d[i]) = rank_sbox_key_guesses(difference_arr_2d, self.candidates)
@@ -275,7 +273,6 @@ class Aes128DPA:
                         title=f"Sbox{i}-KeyGuess_0x{j:02X}")
                     self.traceset2.append(trace)
             print(f"Sbox{i} 分析完成")
-
         elapsed_time = time.perf_counter() - start_time
         print(f"所有Sbox分析完成 用时 {elapsed_time:.3f} 秒")
 
