@@ -256,8 +256,14 @@ class Aes128DPA:
             difference_arr_2d = np.zeros((self.sbox_size, self.sample_number))
             for j in range(self.sbox_size):
                 group = self.data_arr_3d[:, i, j]
-                mean_0 = np.mean(self.sample_arr_2d[group == 0], axis=0)
-                mean_1 = np.mean(self.sample_arr_2d[group == 1], axis=0)
+                group_0 = (group == 0)
+                group_1 = (group == 1)
+                if not np.any(group_0):
+                    raise ValueError(f"分组为空: sbox_index={i}, key_guess={j}, 没有group==0的样本")
+                if not np.any(group_1):
+                    raise ValueError(f"分组为空: sbox_index={i}, key_guess={j}, 没有group==1的样本")
+                mean_0 = np.mean(self.sample_arr_2d[group_0], axis=0)
+                mean_1 = np.mean(self.sample_arr_2d[group_1], axis=0)
                 difference_arr_2d[j, :] = mean_1 - mean_0
             (self.sbox_key_arr_2d[i],
              self.sbox_keyvalue_arr_2d[i],
@@ -305,7 +311,7 @@ class Aes128DPA:
 if __name__ == '__main__':
     aes128_dpa = Aes128DPA()
     aes128_dpa.process_number = 8
-    aes128_dpa.d_fuc_mode = 11  # 汉明重量模型 阈值 < 4
+    aes128_dpa.d_fuc_mode = 9  # 汉明重量模型 阈值 < 4
 
     # 第一轮攻击配置（加密）
     aes128_dpa.traceset_path = "D:\\traceset\\c51_aes128\\aes128_en+LowPass(203439)+StaticAlign(203755).trs"
